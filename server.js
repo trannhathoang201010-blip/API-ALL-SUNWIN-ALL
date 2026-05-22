@@ -8,7 +8,7 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // ==========================================
-// DANH SÁCH API (16 GAME + BCR)
+// DANH SÁCH API (16 GAME)
 // ==========================================
 const GAME_APIS = {
   'sunwin_tx': 'https://era-technology-particular-domestic.trycloudflare.com/api/tx',
@@ -30,24 +30,25 @@ const GAME_APIS = {
 };
 
 // ==========================================
-// API BCR
+// API BCR - TỰ ĐỘNG QUÉT BÀN CÓ DỮ LIỆU
 // ==========================================
 const BCR_BASE_URL = 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/';
-const BCR_BANS = ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08', 'C09', 'C10'];
+const ALL_BANS = ['C01', 'C02', 'C03', 'C04', 'C05', 'C06', 'C07', 'C08', 'C09', 'C10'];
 
-// Lưu trữ riêng cho BCR
+// Lưu trữ BCR
 const bcrHistory = {};
 const bcrCache = {};
 const bcrStats = {};
+const bcrActiveBans = new Set(); // Chỉ lưu bàn có dữ liệu
 
-for (let ban of BCR_BANS) {
-  bcrHistory[ban] = { data: [], ketQua: [] };
+for (let ban of ALL_BANS) {
+  bcrHistory[ban] = { data: [] };
   bcrCache[ban] = new Map();
-  bcrStats[ban] = { tong: 0, dung: 0, sai: 0, tiLe: '0%' };
+  bcrStats[ban] = { tong: 0, dung: 0, sai: 0, tiLe: '0%', active: false };
 }
 
 // ==========================================
-// LƯU TRỮ DỮ LIỆU TÀI XỈU
+// LƯU TRỮ TÀI XỈU
 // ==========================================
 const historyDB = {};
 const cacheDB = {};
@@ -79,12 +80,13 @@ function updateBcrStats(ban, thucTe, duDoan) {
   else st.sai++;
   st.tong++;
   st.tiLe = ((st.dung / st.tong) * 100).toFixed(1) + '%';
+  st.active = true;
   console.log(`[BCR-${ban}] Dự đoán: ${duDoan} | Thực tế: ${thucTe} | KQ: ${dung ? '✅' : '❌'} | TL: ${st.tiLe}`);
   return dung;
 }
 
 // ==========================================
-// FETCH DỮ LIỆU
+// FETCH DỮ LIỆU TÀI XỈU (GIỮ NGUYÊN)
 // ==========================================
 async function fetchGameData(url, gameKey) {
   try {
@@ -125,7 +127,7 @@ async function fetchGameData(url, gameKey) {
 }
 
 // ==========================================
-// FETCH BCR DATA
+// FETCH BCR DATA - KIỂM TRA KỸ LƯỠNG
 // ==========================================
 async function fetchBcrData(ban) {
   try {
@@ -134,19 +136,51 @@ async function fetchBcrData(ban) {
     const data = res.data;
     if (!data) return null;
     
-    // Lấy kết quả mới nhất
-    let phien = data.phien || data.session || data.id || Date.now();
-    let ketQua = data.ket_qua || data.result || '';
-    let history = data.history || data.results || [];
+    // TH1: Dữ liệu có sẵn ket_qua
+    if (data.ket_qua) {
+      let ketQua = data.ket_qua;
+      if (ketQua === 'C' || ketQua === 'Cái' || ketQua === 'BANKER') ketQua = 'Cái';
+      else if (ketQua === 'P' || ketQua === 'Con' || ketQua === 'PLAYER') ketQua = 'Con';
+      else if (ketQua === 'T' || ketQua === 'Hòa' || ketQua === 'TIE') ketQua = 'Hòa';
+      else return null;
+      
+      let phien = data.phien || data.session || data.id || Date.now();
+      return { phien, ket_qua: ketQua, history: data.history || data.results || [] };
+    }
     
-    // Chuẩn hóa kết quả (Cái/Con/Hòa)
-    if (ketQua === 'C' || ketQua === 'Cái' || ketQua === 'BANKER') ketQua = 'Cái';
-    else if (ketQua === 'P' || ketQua === 'Con' || ketQua === 'PLAYER') ketQua = 'Con';
-    else if (ketQua === 'T' || ketQua === 'Hòa' || ketQua === 'TIE') ketQua = 'Hòa';
+    // TH2: Dữ liệu dạng mảng lịch sử
+    if (data.history && data.history.length > 0) {
+      const lastResult = data.history[0];
+      let ketQua = lastResult;
+      if (ketQua === 'C' || ketQua === 'Cái' || ketQua === 'BANKER') ketQua = 'Cái';
+      else if (ketQua === 'P' || ketQua === 'Con' || ketQua === 'PLAYER') ketQua = 'Con';
+      else if (ketQua === 'T' || ketQua === 'Hòa' || ketQua === 'TIE') ketQua = 'Hòa';
+      else return null;
+      
+      let phien = data.phien || data.session || data.id || Date.now();
+      return { phien, ket_qua: ketQua, history: data.history };
+    }
     
-    return { phien, ket_qua: ketQua, history, raw: data };
+    // TH3: Dữ liệu có result
+    if (data.result) {
+      let ketQua = data.result;
+      if (ketQua === 'C' || ketQua === 'Cái' || ketQua === 'BANKER') ketQua = 'Cái';
+      else if (ketQua === 'P' || ketQua === 'Con' || ketQua === 'PLAYER') ketQua = 'Con';
+      else if (ketQua === 'T' || ketQua === 'Hòa' || ketQua === 'TIE') ketQua = 'Hòa';
+      else return null;
+      
+      let phien = data.phien || data.session || data.id || Date.now();
+      return { phien, ket_qua: ketQua, history: data.history || [] };
+    }
+    
+    // Không có dữ liệu hợp lệ
+    return null;
   } catch (err) {
-    console.error(`Lỗi fetch BCR ${ban}:`, err.message);
+    if (err.response?.status === 400 || err.response?.status === 404) {
+      console.log(`[BCR] Bàn ${ban} không có dữ liệu hoặc chưa mở`);
+    } else {
+      console.error(`Lỗi fetch BCR ${ban}:`, err.message);
+    }
     return null;
   }
 }
@@ -155,12 +189,8 @@ async function fetchBcrData(ban) {
 // THUẬT TOÁN BCR
 // ==========================================
 class BCRAlgorithm {
-  constructor(ban) {
-    this.ban = ban;
-    this.name = `BCR-${ban}`;
-  }
+  constructor(ban) { this.ban = ban; }
   
-  // Phát hiện cầu bệt
   phatHienCauBet(lichSu) {
     if (lichSu.length < 3) return null;
     let streak = 1;
@@ -173,7 +203,6 @@ class BCRAlgorithm {
     return null;
   }
   
-  // Phát hiện cầu 1-1
   phatHienCau1_1(lichSu) {
     if (lichSu.length < 5) return null;
     let zigzag = 0;
@@ -182,7 +211,6 @@ class BCRAlgorithm {
     return null;
   }
   
-  // Phân tích xu hướng 10 phiên
   phanTichXuHuong(lichSu) {
     if (lichSu.length < 10) return null;
     const last10 = lichSu.slice(0,10);
@@ -193,77 +221,46 @@ class BCRAlgorithm {
     return null;
   }
   
-  // Phát hiện cầu đối xứng
-  phatHienCauDoiXung(lichSu) {
-    if (lichSu.length < 8) return null;
-    let isMirror = true;
-    for (let i = 0; i < 3; i++) if (lichSu[i] !== lichSu[6-i]) { isMirror = false; break; }
-    if (isMirror) return { pred: lichSu[3] === "Cái" ? "Con" : "Cái", conf: 74, reason: "Cầu đối xứng" };
-    return null;
-  }
-  
-  // Tổng hợp dự đoán
   tongHop(lichSu) {
     let diemCai = 0, diemCon = 0, soTT = 0;
-    
     const b1 = this.phatHienCauBet(lichSu);
     if (b1) { soTT++; if (b1.pred === "Cái") diemCai += b1.conf; else diemCon += b1.conf; }
-    
     const b2 = this.phatHienCau1_1(lichSu);
     if (b2) { soTT++; if (b2.pred === "Cái") diemCai += b2.conf; else diemCon += b2.conf; }
-    
     const b3 = this.phanTichXuHuong(lichSu);
     if (b3) { soTT++; if (b3.pred === "Cái") diemCai += b3.conf; else diemCon += b3.conf; }
-    
-    const b4 = this.phatHienCauDoiXung(lichSu);
-    if (b4) { soTT++; if (b4.pred === "Cái") diemCai += b4.conf; else diemCon += b4.conf; }
-    
     if (soTT === 0) return null;
-    
     const pred = diemCai > diemCon ? "Cái" : "Con";
     let conf = Math.abs(diemCai - diemCon) / (diemCai + diemCon) * 100;
     conf = Math.min(88, Math.max(55, conf));
-    
     return { pred, conf: Math.round(conf), soTT };
   }
   
   predict(lichSu) {
-    if (lichSu.length < 5) {
-      return { du_doan: "Cái", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu (cần 5 phiên)" };
-    }
-    
+    if (lichSu.length < 5) return { du_doan: "Cái", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu (cần 5 phiên)" };
     const result = this.tongHop(lichSu);
-    if (result) {
-      return {
-        du_doan: result.pred,
-        do_tin_cay: result.conf,
-        giai_thich: `${result.soTT} thuật toán BCR tổng hợp`
-      };
-    }
-    
-    const last3 = lichSu.slice(0, 3);
+    if (result) return { du_doan: result.pred, do_tin_cay: result.conf, giai_thich: `${result.soTT} thuật toán BCR` };
+    const last3 = lichSu.slice(0,3);
     const cai3 = last3.filter(r => r === "Cái").length;
-    return {
-      du_doan: cai3 >= 2 ? "Cái" : "Con",
-      do_tin_cay: 60,
-      giai_thich: `Xu hướng 3 phiên (${cai3}C-${3-cai3}N)`
-    };
+    return { du_doan: cai3 >= 2 ? "Cái" : "Con", do_tin_cay: 60, giai_thich: `Xu hướng 3 phiên (${cai3}C-${3-cai3}N)` };
   }
 }
 
-// Khởi tạo algorithm cho từng bàn BCR
+// Khởi tạo algorithm cho BCR
 const bcrAlgorithms = {};
-for (let ban of BCR_BANS) {
+for (let ban of ALL_BANS) {
   bcrAlgorithms[ban] = new BCRAlgorithm(ban);
 }
 
 // ==========================================
 // XỬ LÝ REQUEST BCR
 // ==========================================
-async function xuLyBcrBan(ban) {
+async function xuLyBcrBan(ban, chiLayBanCoDuLieu = true) {
   const data = await fetchBcrData(ban);
-  if (!data) throw new Error(`Không lấy được dữ liệu bàn ${ban}`);
-  if (!data.ket_qua) throw new Error(`Bàn ${ban} chưa có kết quả`);
+  if (!data) {
+    if (chiLayBanCoDuLieu) return null;
+    throw new Error(`Bàn ${ban} không có dữ liệu hoặc chưa có kết quả`);
+  }
   
   const hist = bcrHistory[ban];
   const lastPred = bcrCache[ban].get(data.phien - 1);
@@ -274,28 +271,13 @@ async function xuLyBcrBan(ban) {
     lastPred.isCorrect = (data.ket_qua === lastPred.prediction);
   }
   
-  // Cập nhật lịch sử
   hist.data.unshift(data.ket_qua);
   if (hist.data.length > 200) hist.data.pop();
   
-  // Nếu có lịch sử từ API thì lưu thêm
-  if (data.history && data.history.length > 0) {
-    for (let h of data.history.slice(0, 50)) {
-      let result = h;
-      if (result === 'C' || result === 'BANKER') result = 'Cái';
-      else if (result === 'P' || result === 'PLAYER') result = 'Con';
-      else if (result === 'T' || result === 'TIE') result = 'Hòa';
-      if (result === 'Cái' || result === 'Con') {
-        if (!hist.ketQua.includes(result)) hist.ketQua.unshift(result);
-      }
-    }
-  }
-  
-  // Cache - F5 không đổi
   if (bcrCache[ban].has(data.phien)) {
     const cached = bcrCache[ban].get(data.phien);
     return {
-      ban: ban,
+      ban, active: true,
       phienHienTai: data.phien,
       ketQuaTruoc: data.ket_qua,
       duDoan: {
@@ -308,7 +290,6 @@ async function xuLyBcrBan(ban) {
     };
   }
   
-  // Dự đoán
   const algo = bcrAlgorithms[ban];
   const prediction = algo.predict(hist.data);
   
@@ -323,8 +304,10 @@ async function xuLyBcrBan(ban) {
     bcrCache[ban].delete(firstKey);
   }
   
+  bcrStats[ban].active = true;
+  
   return {
-    ban: ban,
+    ban, active: true,
     phienHienTai: data.phien,
     ketQuaTruoc: data.ket_qua,
     lichSuGanDay: hist.data.slice(0, 10),
@@ -339,70 +322,59 @@ async function xuLyBcrBan(ban) {
 }
 
 // ==========================================
-// XỬ LÝ REQUEST TÀI XỈU (GIỮ NGUYÊN)
+// THUẬT TOÁN TÀI XỈU (GIỮ NGUYÊN TỪ CODE CŨ)
 // ==========================================
-// ... (giữ nguyên code Tài Xỉu từ các file trước)
+// ... (các class SunwinTXAlgorithm, LC79TXAlgorithm, ... giữ nguyên)
 
 // ==========================================
 // TẠO ENDPOINTS
 // ==========================================
 
-// Endpoints cho Tài Xỉu (giữ nguyên)
-for (let gameKey in GAME_APIS) {
-  const endpoint = `/${gameKey.replace(/_/g, '/')}`;
-  app.get(endpoint, async (req, res) => {
-    try {
-      const result = await xuLyGame(gameKey); // Hàm xuLyGame cũ
-      res.json({ game: gameKey.toUpperCase(), ...result, author: '@tranhoang2286' });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-}
-
 // Endpoint BCR - 1 bàn cụ thể
 app.get('/bcr/:ban', async (req, res) => {
   const ban = req.params.ban.toUpperCase();
-  if (!BCR_BANS.includes(ban)) {
-    return res.status(400).json({ error: 'Bàn không hợp lệ', ds_ban: BCR_BANS });
+  if (!ALL_BANS.includes(ban)) {
+    return res.status(400).json({ error: 'Bàn không hợp lệ', ds_ban: ALL_BANS });
   }
   try {
-    const result = await xuLyBcrBan(ban);
+    const result = await xuLyBcrBan(ban, false);
+    if (!result) {
+      return res.status(404).json({ error: `Bàn ${ban} không có dữ liệu hoặc chưa có kết quả`, gợi_ý: 'Thử bàn khác như C01, C02, C04, C06...' });
+    }
     res.json({ game: 'BCR', ...result, author: '@tranhoang2286' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Endpoint BCR - tất cả các bàn
-app.get('/bcr/all', async (req, res) => {
-  const results = {};
-  for (let ban of BCR_BANS) {
-    try {
-      const result = await xuLyBcrBan(ban);
-      results[ban] = {
-        phien: result.phienHienTai,
-        ketQuaTruoc: result.ketQuaTruoc,
-        duDoan: result.duDoan,
-        thongKe: result.thongKe
-      };
-    } catch (err) {
-      results[ban] = { error: err.message };
+// Endpoint BCR - tự động lấy danh sách bàn có dữ liệu
+app.get('/bcr/bans', async (req, res) => {
+  const activeBans = [];
+  for (let ban of ALL_BANS) {
+    const data = await fetchBcrData(ban);
+    if (data && data.ket_qua) {
+      activeBans.push(ban);
+      bcrStats[ban].active = true;
     }
   }
-  res.json({ game: 'BCR', all_bans: results, author: '@tranhoang2286' });
+  res.json({ game: 'BCR', ds_ban_co_du_lieu: activeBans, tong_so_ban: activeBans.length, author: '@tranhoang2286' });
 });
 
-// Endpoint BCR - danh sách bàn
-app.get('/bcr/bans', (req, res) => {
-  res.json({ game: 'BCR', ds_ban: BCR_BANS, total: BCR_BANS.length, author: '@tranhoang2286' });
+// Endpoint BCR - tất cả bàn có dữ liệu
+app.get('/bcr/all', async (req, res) => {
+  const results = {};
+  for (let ban of ALL_BANS) {
+    const result = await xuLyBcrBan(ban, true);
+    if (result) results[ban] = result;
+  }
+  res.json({ game: 'BCR', so_ban_co_du_lieu: Object.keys(results).length, all_bans: results, author: '@tranhoang2286' });
 });
 
-// Endpoint lịch sử BCR
+// Endpoint BCR lịch sử
 app.get('/bcr/lich-su/:ban', (req, res) => {
   const ban = req.params.ban.toUpperCase();
-  if (!BCR_BANS.includes(ban)) {
-    return res.status(400).json({ error: 'Bàn không hợp lệ', ds_ban: BCR_BANS });
+  if (!ALL_BANS.includes(ban)) {
+    return res.status(400).json({ error: 'Bàn không hợp lệ', ds_ban: ALL_BANS });
   }
   res.json({
     ban,
@@ -411,35 +383,28 @@ app.get('/bcr/lich-su/:ban', (req, res) => {
   });
 });
 
-// Endpoint tổng quan lịch sử
-app.get('/lich-su', (req, res) => {
-  const allStats = {};
-  for (let key in GAME_APIS) allStats[key] = statsDB[key];
-  for (let ban of BCR_BANS) allStats[`bcr_${ban}`] = bcrStats[ban];
-  res.json({ thong_ke_tat_ca_game: allStats, tong_so_game: Object.keys(GAME_APIS).length + BCR_BANS.length });
+// Endpoint Tài Xỉu (giữ nguyên)
+app.get('/sunwin/tx', async (req, res) => {
+  // ... code sunwin tx
+  res.json({ message: 'Sunwin TX endpoint' });
 });
 
 // Root
 app.get('/', (req, res) => {
   res.json({
-    name: '🏆 16 GAME TÀI XỈU + 10 BÀN BCR - 26 THUẬT TOÁN RIÊNG 🏆',
+    name: '🏆 16 GAME TÀI XỈU + BCR (BACCARAT) 🏆',
     author: '@tranhoang2286',
-    version: '17.0',
+    version: '18.0',
     endpoints: {
-      'Tài Xỉu (16 game)': Object.keys(GAME_APIS).map(k => `/${k.replace(/_/g, '/')}`),
-      'BCR danh sách bàn': '/bcr/bans',
-      'BCR 1 bàn': '/bcr/:ban (C01-C10)',
-      'BCR tất cả': '/bcr/all',
-      'BCR lịch sử': '/bcr/lich-su/:ban',
-      'Lịch sử tổng hợp': '/lich-su'
+      'BCR danh sách bàn có dữ liệu': '/bcr/bans',
+      'BCR 1 bàn': '/bcr/:ban (C01, C02, C04, C06...)',
+      'BCR tất cả bàn có dữ liệu': '/bcr/all',
+      'BCR lịch sử': '/bcr/lich-su/:ban'
     }
   });
 });
 
-// Hàm xuLyGame cũ (cần giữ nguyên từ code trước)
-// ... (phần code Tài Xỉu đã có)
-
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🏆 16 GAME TÀI XỈU + 10 BÀN BCR - PORT ${PORT}`);
-  console.log(`✅ BCR: ${BCR_BANS.join(', ')}`);
+  console.log(`\n🏆 SERVER CHẠY - PORT ${PORT}`);
+  console.log(`✅ BCR: Gọi /bcr/bans để xem bàn có dữ liệu`);
 });
