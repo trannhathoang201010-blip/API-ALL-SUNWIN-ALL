@@ -8,17 +8,16 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // ==========================================
-// API NGUỒN
+// API NGUỒN (17 GAME)
 // ==========================================
 const GAME_APIS = {
+  // Tài Xỉu
   'sunwin_tx': 'https://era-technology-particular-domestic.trycloudflare.com/api/tx',
-  'sunwin_sicbo': 'https://api.wsktnus8.net/v2/history/getLastResult?gameId=ktrng_3979&size=100&tableId=39791215743193&curPage=1',
   'lc79_tx': 'https://strategy-cube-vinyl-warcraft.trycloudflare.com/api/tx',
   'lc79_md5': 'https://strategy-cube-vinyl-warcraft.trycloudflare.com/api/txmd5',
   'betvip_tx': 'https://eve-hydrocodone-offshore-eagle.trycloudflare.com/api/tx',
   'betvip_md5': 'https://eve-hydrocodone-offshore-eagle.trycloudflare.com/api/txmd5',
   'club789_tx': 'https://venue-integrate-aged-heavily.trycloudflare.com/api/tx',
-  'club789_sicbo': 'https://demo7892.fun/history/getLastResult?gameId=ktrng_3986&size=100&tableId=398625062021&curPage=1',
   'b52': 'https://flex-knights-agree-grass.trycloudflare.com/txmd5',
   'max789': 'https://deutschland-mandatory-upon-changelog.trycloudflare.com/api/tx',
   'luck8_md5': 'https://qld-incentives-tion-boost.trycloudflare.com/api/txmd5',
@@ -27,7 +26,10 @@ const GAME_APIS = {
   'gb68_md5': 'https://profiles-televisions-sic-stay.trycloudflare.com/api/68/md5',
   'alo_hitclub_md5': 'https://preference-assuming-picnic-concentration.trycloudflare.com/api/txmd5',
   'luck8_sicbo40': 'https://qld-incentives-tion-boost.trycloudflare.com/api/sicbo40',
-  'lc79_xocdia': 'https://strategy-cube-vinyl-warcraft.trycloudflare.com/api/xocdia'
+  'lc79_xocdia': 'https://strategy-cube-vinyl-warcraft.trycloudflare.com/api/xocdia',
+  // Sicbo
+  'sunwin_sicbo': 'https://api.wsktnus8.net/v2/history/getLastResult?gameId=ktrng_3979&size=100&tableId=39791215743193&curPage=1',
+  'club789_sicbo': 'https://demo7892.fun/history/getLastResult?gameId=ktrng_3986&size=100&tableId=398625062021&curPage=1'
 };
 
 // ==========================================
@@ -51,7 +53,7 @@ function updateStats(game, thucTe, duDoan) {
   else st.sai++;
   st.tong++;
   st.tiLe = ((st.dung / st.tong) * 100).toFixed(1) + '%';
-  console.log(`[${game}] Dự đoán: ${duDoan} | Thực tế: ${thucTe} | KQ: ${dung ? '✅' : '❌'} | TL: ${st.tiLe}`);
+  console.log(`[${game}] Dự đoán: ${duDoan} | Thực tế: ${thucTe} | KQ: ${dung ? '✅ ĐÚNG' : '❌ SAI'} | TL: ${st.tiLe}`);
   return dung;
 }
 
@@ -111,209 +113,501 @@ async function fetchGameData(url, gameKey) {
 }
 
 // ==========================================
-// THUẬT TOÁN PHÂN TÍCH THỰC THỤ (KHÔNG THEO CẦU KIỂU "RA GÌ ĐOÁN NẤY")
+// ========== THUẬT TOÁN RIÊNG CHO TỪNG GAME (KHÔNG RANDOM) ==========
 // ==========================================
 
-// 1. PHÂN TÍCH TẦN SUẤT 10 PHIÊN (BẺ CẦU KHI QUÁ NÓNG)
-function phanTichTanSuat10(lichSu) {
-  if (lichSu.length < 10) return null;
-  const last10 = lichSu.slice(0, 10);
-  const tai10 = last10.filter(r => r === "Tài").length;
-  const xiu10 = 10 - tai10;
-  
-  if (tai10 >= 8) return { pred: "Xỉu", conf: 82, lyDo: `Tài quá nóng ${tai10}/10 → bẻ Xỉu` };
-  if (xiu10 >= 8) return { pred: "Tài", conf: 82, lyDo: `Xỉu quá nóng ${xiu10}/10 → bẻ Tài` };
-  if (tai10 >= 7) return { pred: "Xỉu", conf: 75, lyDo: `Tài nóng ${tai10}/10 → bẻ Xỉu` };
-  if (xiu10 >= 7) return { pred: "Tài", conf: 75, lyDo: `Xỉu nóng ${xiu10}/10 → bẻ Tài` };
-  return null;
-}
-
-// 2. PHÂN TÍCH CHUỖI BỆT (PHÁ CẦU KHI BỆT DÀI)
-function phanTichBệt(lichSu) {
-  if (lichSu.length < 3) return null;
-  let streak = 1;
-  for (let i = 1; i < lichSu.length; i++) {
-    if (lichSu[i] === lichSu[i-1]) streak++;
-    else break;
+// 1. SUNWIN TX - Chuyên phân tích tần suất 10 phiên và bệt
+class SunwinTXAlgorithm {
+  predict(lichSu) {
+    if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let diemTai = 0, diemXiu = 0;
+    
+    // Tần suất 10 phiên (ưu tiên cao nhất)
+    if (lichSu.length >= 10) {
+      const last10 = lichSu.slice(0, 10);
+      const tai10 = last10.filter(r => r === "Tài").length;
+      if (tai10 >= 8) diemXiu += 85;
+      else if (tai10 <= 2) diemTai += 85;
+      else if (tai10 >= 7) diemXiu += 78;
+      else if (tai10 <= 3) diemTai += 78;
+      else if (tai10 >= 6) diemXiu += 70;
+      else if (tai10 <= 4) diemTai += 70;
+      else { diemTai += 60; diemXiu += 60; }
+    }
+    
+    // Bệt
+    let bet = 1;
+    for (let i = 1; i < lichSu.length; i++) {
+      if (lichSu[i] === lichSu[0]) bet++;
+      else break;
+    }
+    if (bet >= 5) { if (lichSu[0] === "Tài") diemXiu += 88; else diemTai += 88; }
+    else if (bet === 4) { if (lichSu[0] === "Tài") diemXiu += 80; else diemTai += 80; }
+    else if (bet === 3) { if (lichSu[0] === "Tài") diemXiu += 72; else diemTai += 72; }
+    
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    conf = Math.min(92, Math.max(55, conf));
+    return { du_doan: pred, do_tin_cay: Math.round(conf), giai_thich: `T:${Math.round(diemTai)} X:${Math.round(diemXiu)}` };
   }
-  if (streak >= 5) return { pred: lichSu[0] === "Tài" ? "Xỉu" : "Tài", conf: 88, lyDo: `Bệt ${streak} quá dài → phá cầu` };
-  if (streak === 4) return { pred: lichSu[0] === "Tài" ? "Xỉu" : "Tài", conf: 80, lyDo: `Bệt 4 → chuẩn bị gãy` };
-  if (streak === 3) return { pred: lichSu[0] === "Tài" ? "Xỉu" : "Tài", conf: 72, lyDo: `Bệt 3 → nguy cơ gãy` };
-  return null;
 }
 
-// 3. PHÂN TÍCH CẦU 1-1 (XEN KẼ)
-function phanTichCau1_1(lichSu) {
-  if (lichSu.length < 6) return null;
-  let isZigzag = true;
-  for (let i = 1; i < 5; i++) {
-    if (lichSu[i] === lichSu[i-1]) { isZigzag = false; break; }
+// 2. LC79 TX - Chuyên phân tích tổng điểm
+class LC79TXAlgorithm {
+  predict(lichSu, tongData) {
+    if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let diemTai = 0, diemXiu = 0;
+    
+    // Tổng điểm
+    if (tongData && tongData.length >= 15) {
+      const avg = tongData.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
+      const prevAvg = tongData.slice(10, 20).reduce((a, b) => a + b, 0) / 10;
+      if (avg > prevAvg + 1.5) diemXiu += 30;
+      else if (avg < prevAvg - 1.5) diemTai += 30;
+      if (avg > 12.5) diemXiu += 35;
+      else if (avg < 8.5) diemTai += 35;
+      else if (avg > 11.5) diemXiu += 28;
+      else if (avg < 9.5) diemTai += 28;
+    }
+    
+    // Bệt
+    let bet = 1;
+    for (let i = 1; i < lichSu.length; i++) {
+      if (lichSu[i] === lichSu[0]) bet++;
+      else break;
+    }
+    if (bet >= 4) { if (lichSu[0] === "Tài") diemXiu += 75; else diemTai += 75; }
+    else if (bet === 3) { if (lichSu[0] === "Tài") diemXiu += 68; else diemTai += 68; }
+    
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    conf = Math.min(88, Math.max(55, conf));
+    return { du_doan: pred, do_tin_cay: Math.round(conf), giai_thich: `Tổng điểm + Bệt` };
   }
-  if (isZigzag) {
-    let nextPred = lichSu[0] === "Tài" ? "Xỉu" : "Tài";
-    return { pred: nextPred, conf: 78, lyDo: "Cầu 1-1 đang chạy → đánh ngược" };
+}
+
+// 3. LC79 MD5 - Chuyên Markov chain
+class LC79MD5Algorithm {
+  predict(lichSu) {
+    if (lichSu.length < 10) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let diemTai = 0, diemXiu = 0;
+    
+    // Markov bậc 2
+    const map = new Map();
+    for (let i = 0; i < lichSu.length - 2; i++) {
+      const key = lichSu[i] + ',' + lichSu[i+1];
+      const next = lichSu[i+2];
+      if (!map.has(key)) map.set(key, { T: 0, X: 0 });
+      if (next === "Tài") map.get(key).T++;
+      else map.get(key).X++;
+    }
+    const lastKey = lichSu[0] + ',' + lichSu[1];
+    const stat = map.get(lastKey);
+    if (stat && stat.T + stat.X >= 3) {
+      if (stat.T > stat.X) diemTai += 75;
+      else diemXiu += 75;
+    }
+    
+    // Tần suất 10 phiên
+    if (lichSu.length >= 10) {
+      const last10 = lichSu.slice(0, 10);
+      const tai10 = last10.filter(r => r === "Tài").length;
+      if (tai10 >= 7) diemXiu += 35;
+      else if (tai10 <= 3) diemTai += 35;
+    }
+    
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    conf = Math.min(88, Math.max(55, conf));
+    return { du_doan: pred, do_tin_cay: Math.round(conf), giai_thich: `Markov + Tần suất` };
   }
-  return null;
 }
 
-// 4. PHÂN TÍCH TỔNG ĐIỂM (NẾU CÓ DỮ LIỆU)
-function phanTichTongDiem(tongData) {
-  if (!tongData || tongData.length < 15) return null;
-  const last10 = tongData.slice(0, 10);
-  const avg = last10.reduce((a, b) => a + b, 0) / 10;
-  const prevAvg = tongData.slice(10, 20).reduce((a, b) => a + b, 0) / 10;
-  
-  if (avg > prevAvg + 1.5) return { pred: "Xỉu", conf: 68, lyDo: `Tổng tăng mạnh (${avg.toFixed(1)} → ${prevAvg.toFixed(1)}) → Xỉu` };
-  if (avg < prevAvg - 1.5) return { pred: "Tài", conf: 68, lyDo: `Tổng giảm mạnh (${avg.toFixed(1)} → ${prevAvg.toFixed(1)}) → Tài` };
-  if (avg > 12) return { pred: "Xỉu", conf: 66, lyDo: `Tổng trung bình cao (${avg.toFixed(1)}) → Xỉu` };
-  if (avg < 9) return { pred: "Tài", conf: 66, lyDo: `Tổng trung bình thấp (${avg.toFixed(1)}) → Tài` };
-  return null;
-}
-
-// 5. PHÂN TÍCH XÁC SUẤT MARKOV BẬC 2
-function phanTichMarkov(lichSu) {
-  if (lichSu.length < 12) return null;
-  const map = new Map();
-  for (let i = 0; i < lichSu.length - 2; i++) {
-    const key = lichSu[i] + ',' + lichSu[i+1];
-    const next = lichSu[i+2];
-    if (!map.has(key)) map.set(key, { T: 0, X: 0 });
-    if (next === "Tài") map.get(key).T++;
-    else map.get(key).X++;
+// 4. BETVIP TX - Chuyên Martingale
+class BetvipTXAlgorithm {
+  predict(lichSu) {
+    if (lichSu.length < 10) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    const last10 = lichSu.slice(0, 10);
+    const tai10 = last10.filter(r => r === "Tài").length;
+    
+    if (tai10 >= 8) return { du_doan: "Xỉu", do_tin_cay: 85, giai_thich: `Tài ${tai10}/10 - bẻ Xỉu` };
+    if (tai10 <= 2) return { du_doan: "Tài", do_tin_cay: 85, giai_thich: `Xỉu ${10-tai10}/10 - bẻ Tài` };
+    if (tai10 >= 7) return { du_doan: "Xỉu", do_tin_cay: 78, giai_thich: `Tài ${tai10}/10 - bẻ Xỉu` };
+    if (tai10 <= 3) return { du_doan: "Tài", do_tin_cay: 78, giai_thich: `Xỉu ${10-tai10}/10 - bẻ Tài` };
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    return { du_doan: tai5 >= 3 ? "Tài" : "Xỉu", do_tin_cay: 65, giai_thich: `Xu hướng 5 phiên` };
   }
-  const lastKey = lichSu[0] + ',' + lichSu[1];
-  const stat = map.get(lastKey);
-  if (stat && stat.T + stat.X >= 3) {
-    const pred = stat.T > stat.X ? "Tài" : "Xỉu";
-    let conf = 60 + Math.min(15, (stat.T + stat.X) * 2);
-    return { pred, conf: Math.min(80, conf), lyDo: `Markov bậc 2 (${stat.T+stat.X} mẫu) → ${pred}` };
+}
+
+// 5. BETVIP MD5 - Chuyên xúc xắc
+class BetvipMD5Algorithm {
+  predict(lichSu, diceData) {
+    if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let diemTai = 0, diemXiu = 0;
+    
+    if (diceData && diceData.length >= 15) {
+      const freq = {1:0,2:0,3:0,4:0,5:0,6:0};
+      for (let d of diceData.slice(0, 20)) {
+        if (d && d.length === 3) d.forEach(f => { if (f) freq[f]++; });
+      }
+      const maxFace = Object.keys(freq).reduce((a, b) => freq[a] > freq[b] ? a : b);
+      if (maxFace >= 5) diemTai += 25;
+      else if (maxFace <= 2) diemXiu += 25;
+    }
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    if (tai5 >= 4) diemXiu += 40;
+    else if (tai5 <= 1) diemTai += 40;
+    else if (tai5 >= 3) diemTai += 30;
+    else diemXiu += 30;
+    
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    conf = Math.min(85, Math.max(55, conf));
+    return { du_doan: pred, do_tin_cay: Math.round(conf), giai_thich: `Xúc xắc + xu hướng` };
   }
-  return null;
 }
 
-// 6. PHÂN TÍCH XU HƯỚNG 5 PHIÊN (CHỈ DÙNG KHI KHÔNG CÓ TÍN HIỆU RÕ)
-function phanTichXuHuong5(lichSu) {
-  if (lichSu.length < 5) return null;
-  const last5 = lichSu.slice(0, 5);
-  const tai5 = last5.filter(r => r === "Tài").length;
-  const pred = tai5 >= 3 ? "Tài" : "Xỉu";
-  let conf = 55 + Math.abs(tai5 - 2.5) * 8;
-  return { pred, conf: Math.min(68, Math.round(conf)), lyDo: `Xu hướng ${tai5}T-${5-tai5}X` };
+// 6. 789CLUB TX - Chuyên cầu 1-1
+class Club789TXAlgorithm {
+  predict(lichSu) {
+    if (lichSu.length < 6) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let zigzag = 0;
+    for (let i = 1; i < 5; i++) {
+      if (lichSu[i] !== lichSu[i-1]) zigzag++;
+    }
+    if (zigzag >= 3) {
+      const pred = lichSu[0] === "Tài" ? "Xỉu" : "Tài";
+      return { du_doan: pred, do_tin_cay: 78, giai_thich: "Cầu 1-1 - đánh ngược" };
+    }
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    return { du_doan: tai5 >= 3 ? "Tài" : "Xỉu", do_tin_cay: 65, giai_thich: `Xu hướng ${tai5}T-${5-tai5}X` };
+  }
 }
 
-// TỔNG HỢP TẤT CẢ THUẬT TOÁN
-function tongHopDuDoan(lichSu, tongData) {
-  if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
-  
-  const cacPhuongPhap = [
-    phanTichTanSuat10(lichSu),
-    phanTichBệt(lichSu),
-    phanTichCau1_1(lichSu),
-    phanTichTongDiem(tongData),
-    phanTichMarkov(lichSu),
-    phanTichXuHuong5(lichSu)
-  ].filter(p => p !== null);
-  
-  if (cacPhuongPhap.length === 0) {
+// 7. B52 - Chuyên RSI
+class B52Algorithm {
+  predict(lichSu) {
+    if (lichSu.length < 14) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    const nums = lichSu.slice(0, 14).map(r => r === "Tài" ? 1 : 0);
+    let gains = 0, losses = 0;
+    for (let i = 1; i < nums.length; i++) {
+      const diff = nums[i] - nums[i-1];
+      if (diff > 0) gains += diff;
+      else losses -= diff;
+    }
+    const rsi = losses === 0 ? 100 : 100 - (100 / (1 + gains / losses));
+    
+    if (rsi >= 75) return { du_doan: "Xỉu", do_tin_cay: 80, giai_thich: `RSI quá mua (${rsi.toFixed(0)}) - bẻ Xỉu` };
+    if (rsi <= 25) return { du_doan: "Tài", do_tin_cay: 80, giai_thich: `RSI quá bán (${rsi.toFixed(0)}) - bẻ Tài` };
+    if (rsi >= 65) return { du_doan: "Xỉu", do_tin_cay: 72, giai_thich: `RSI cao (${rsi.toFixed(0)}) - bẻ Xỉu` };
+    if (rsi <= 35) return { du_doan: "Tài", do_tin_cay: 72, giai_thich: `RSI thấp (${rsi.toFixed(0)}) - bẻ Tài` };
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    return { du_doan: tai5 >= 3 ? "Tài" : "Xỉu", do_tin_cay: 62, giai_thich: `Xu hướng 5 phiên` };
+  }
+}
+
+// 8. MAX789 - Chuyên Fibonacci & chu kỳ
+class Max789Algorithm {
+  predict(lichSu) {
+    if (lichSu.length < 16) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    const fibs = [2, 3, 5, 8];
+    let match = 0;
+    for (let f of fibs) {
+      if (lichSu.length > f && lichSu[0] === lichSu[f]) match++;
+    }
+    
+    if (match >= 3) {
+      const pred = lichSu[0] === "Tài" ? "Xỉu" : "Tài";
+      return { du_doan: pred, do_tin_cay: 82, giai_thich: `Fibonacci ${match}/4 vị trí trùng - bẻ cầu` };
+    }
+    
+    const last8 = lichSu.slice(0, 8);
+    const next8 = lichSu.slice(8, 16);
+    if (last8.join('') === next8.join('')) {
+      const pred = last8[7] === "Tài" ? "Xỉu" : "Tài";
+      return { du_doan: pred, do_tin_cay: 78, giai_thich: "Chu kỳ 8 phiên - bẻ cầu" };
+    }
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    return { du_doan: tai5 >= 3 ? "Tài" : "Xỉu", do_tin_cay: 62, giai_thich: `Xu hướng 5 phiên` };
+  }
+}
+
+// 9. LUCK8 MD5 - Chuyên KNN
+class Luck8MD5Algorithm {
+  predict(lichSu) {
+    if (lichSu.length < 15) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    const k = 5, lookback = 5;
+    const query = lichSu.slice(0, lookback);
+    const distances = [];
+    for (let i = lookback; i < lichSu.length - 1; i++) {
+      let diff = 0;
+      for (let j = 0; j < lookback; j++) {
+        if (lichSu[i - lookback + j] !== query[j]) diff++;
+      }
+      distances.push({ diff, next: lichSu[i] });
+    }
+    distances.sort((a, b) => a.diff - b.diff);
+    const neighbors = distances.slice(0, k);
+    const taiCount = neighbors.filter(n => n.next === "Tài").length;
+    
+    if (taiCount > k/2) return { du_doan: "Tài", do_tin_cay: 68, giai_thich: `KNN (${taiCount}/${k} láng giềng chọn Tài)` };
+    return { du_doan: "Xỉu", do_tin_cay: 68, giai_thich: `KNN (${k-taiCount}/${k} láng giềng chọn Xỉu)` };
+  }
+}
+
+// 10. SUMVIN MD5 - Chuyên pattern 2-1
+class SumvinMD5Algorithm {
+  predict(lichSu) {
+    if (lichSu.length < 6) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    if (lichSu[0] === lichSu[1] && lichSu[3] === lichSu[4] && lichSu[0] !== lichSu[3]) {
+      return { du_doan: lichSu[0], do_tin_cay: 78, giai_thich: "Cầu 2-1 - theo nhịp" };
+    }
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    if (tai5 >= 4) return { du_doan: "Xỉu", do_tin_cay: 72, giai_thich: `Tài ${tai5}/5 - bẻ Xỉu` };
+    if (tai5 <= 1) return { du_doan: "Tài", do_tin_cay: 72, giai_thich: `Xỉu ${5-tai5}/5 - bẻ Tài` };
+    return { du_doan: tai5 >= 3 ? "Tài" : "Xỉu", do_tin_cay: 62, giai_thich: `Xu hướng ${tai5}T-${5-tai5}X` };
+  }
+}
+
+// 11. GB68 THƯỜNG - Chuyên cầu ngắn hạn 3 phiên
+class GB68ThuongAlgorithm {
+  predict(lichSu) {
+    if (lichSu.length < 4) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
     const last3 = lichSu.slice(0, 3);
     const tai3 = last3.filter(r => r === "Tài").length;
-    return { du_doan: tai3 >= 2 ? "Tài" : "Xỉu", do_tin_cay: 58, giai_thich: "Theo xu hướng 3 phiên" };
+    if (tai3 === 3) return { du_doan: "Xỉu", do_tin_cay: 74, giai_thich: "Bệt Tài 3 - bẻ Xỉu" };
+    if (tai3 === 0) return { du_doan: "Tài", do_tin_cay: 74, giai_thich: "Bệt Xỉu 3 - bẻ Tài" };
+    if (tai3 === 2) return { du_doan: "Tài", do_tin_cay: 66, giai_thich: "2T/3 - theo Tài" };
+    return { du_doan: "Xỉu", do_tin_cay: 66, giai_thich: "2X/3 - theo Xỉu" };
   }
-  
-  // Bỏ phiếu có trọng số
-  let diemTai = 0, diemXiu = 0;
-  for (let p of cacPhuongPhap) {
-    if (p.pred === "Tài") diemTai += p.conf;
-    else diemXiu += p.conf;
-  }
-  
-  const finalPred = diemTai > diemXiu ? "Tài" : "Xỉu";
-  let confidence = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
-  confidence = Math.min(90, Math.max(55, confidence));
-  
-  // Lấy lý do từ phương pháp có độ tin cậy cao nhất
-  const bestMethod = cacPhuongPhap.reduce((a, b) => a.conf > b.conf ? a : b);
-  
-  return {
-    du_doan: finalPred,
-    do_tin_cay: Math.round(confidence),
-    giai_thich: `${bestMethod.lyDo} (tổng hợp ${cacPhuongPhap.length} phương pháp)`
-  };
 }
 
-// SICBO (có thêm dự đoán vị)
-function duDoanSicbo(lichSu, tongData) {
-  const taiXiu = tongHopDuDoan(lichSu, tongData);
+// 12. GB68 MD5 - Chuyên tổng điểm
+class GB68MD5Algorithm {
+  predict(lichSu, tongData) {
+    if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    if (tongData && tongData.length >= 10) {
+      const avg = tongData.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
+      if (avg > 11.5) return { du_doan: "Xỉu", do_tin_cay: 70, giai_thich: `Tổng cao TB ${avg.toFixed(1)}` };
+      if (avg < 9.5) return { du_doan: "Tài", do_tin_cay: 70, giai_thich: `Tổng thấp TB ${avg.toFixed(1)}` };
+    }
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    return { du_doan: tai5 >= 3 ? "Tài" : "Xỉu", do_tin_cay: 62, giai_thich: `Xu hướng ${tai5}T-${5-tai5}X` };
+  }
+}
+
+// 13. ALO HITCLUB MD5 - Chuyên tổng hợp
+class AloHitclubMD5Algorithm {
+  predict(lichSu, diceData) {
+    if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let diemTai = 0, diemXiu = 0;
+    
+    if (diceData && diceData.length >= 10) {
+      let sum = 0, count = 0;
+      for (let d of diceData.slice(0, 10)) {
+        if (d && d.length === 3) { sum += d[0] + d[1] + d[2]; count++; }
+      }
+      if (count > 0) {
+        const avg = sum / count;
+        if (avg > 11.5) diemXiu += 25;
+        else if (avg < 9.5) diemTai += 25;
+      }
+    }
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    if (tai5 >= 4) diemXiu += 45;
+    else if (tai5 <= 1) diemTai += 45;
+    else if (tai5 >= 3) diemTai += 35;
+    else diemXiu += 35;
+    
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    conf = Math.min(88, Math.max(55, conf));
+    return { du_doan: pred, do_tin_cay: Math.round(conf), giai_thich: `Tổng hợp xúc xắc + xu hướng` };
+  }
+}
+
+// 14. LUCK8 SICBO40 - Chuyên tốc độ cao
+class Luck8Sicbo40Algorithm {
+  predict(lichSu) {
+    if (lichSu.length < 4) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    const last3 = lichSu.slice(0, 3);
+    const tai3 = last3.filter(r => r === "Tài").length;
+    if (tai3 === 3) return { du_doan: "Xỉu", do_tin_cay: 72, giai_thich: "Bệt Tài 3 - bẻ Xỉu" };
+    if (tai3 === 0) return { du_doan: "Tài", do_tin_cay: 72, giai_thich: "Bệt Xỉu 3 - bẻ Tài" };
+    if (tai3 === 2) return { du_doan: "Xỉu", do_tin_cay: 66, giai_thich: "2T/3 - bẻ Xỉu" };
+    return { du_doan: "Tài", do_tin_cay: 66, giai_thich: "2X/3 - bẻ Tài" };
+  }
+}
+
+// 15. XÓC ĐĨA
+class LC79XocDiaAlgorithm {
+  predict(lichSu) {
+    if (lichSu.length < 5) return { du_doan: "Chẵn", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let bet = 1;
+    for (let i = 1; i < lichSu.length; i++) {
+      if (lichSu[i] === lichSu[0]) bet++;
+      else break;
+    }
+    if (bet >= 4) return { du_doan: lichSu[0] === "Chẵn" ? "Lẻ" : "Chẵn", do_tin_cay: 78, giai_thich: `Bệt ${bet} - bẻ cầu` };
+    if (bet === 3) return { du_doan: lichSu[0] === "Chẵn" ? "Lẻ" : "Chẵn", do_tin_cay: 70, giai_thich: "Bệt 3 - bẻ cầu" };
+    
+    const last5 = lichSu.slice(0, 5);
+    const chan5 = last5.filter(r => r === "Chẵn").length;
+    if (chan5 >= 4) return { du_doan: "Lẻ", do_tin_cay: 72, giai_thich: `Chẵn nóng ${chan5}/5 - bẻ Lẻ` };
+    if (chan5 <= 1) return { du_doan: "Chẵn", do_tin_cay: 72, giai_thich: `Lẻ nóng ${5-chan5}/5 - bẻ Chẵn` };
+    return { du_doan: chan5 >= 3 ? "Chẵn" : "Lẻ", do_tin_cay: 62, giai_thich: `Theo xu hướng ${chan5}C-${5-chan5}L` };
+  }
+}
+
+// 16. SUNWIN SICBO - Chuyên 3 kết quả (Tài/Xỉu + Chẵn/Lẻ + 3 vị)
+class SunwinSicboAlgorithm {
+  duDoanTaiXiu(tongData) {
+    if (tongData.length < 10) return { pred: "Tài", conf: 55 };
+    let diemTai = 0, diemXiu = 0;
+    const last10 = tongData.slice(0, 10);
+    const tai10 = last10.filter(t => t >= 11).length;
+    if (tai10 >= 8) diemXiu += 40;
+    else if (tai10 <= 2) diemTai += 40;
+    else if (tai10 >= 7) diemXiu += 32;
+    else if (tai10 <= 3) diemTai += 32;
+    else if (tai10 >= 6) diemXiu += 24;
+    else if (tai10 <= 4) diemTai += 24;
+    else { diemTai += 16; diemXiu += 16; }
+    const avg5 = tongData.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
+    if (avg5 > 13) diemXiu += 35;
+    else if (avg5 < 8) diemTai += 35;
+    else if (avg5 > 12) diemXiu += 28;
+    else if (avg5 < 9) diemTai += 28;
+    else if (avg5 > 11) diemXiu += 20;
+    else if (avg5 < 10) diemTai += 20;
+    else { diemTai += 14; diemXiu += 14; }
+    let streak = 1;
+    for (let i = 1; i < tongData.length; i++) {
+      if ((tongData[i] >= 11) === (tongData[i-1] >= 11)) streak++;
+      else break;
+    }
+    if (streak >= 4) { if (tongData[0] >= 11) diemXiu += 35; else diemTai += 35; }
+    else if (streak >= 3) { if (tongData[0] >= 11) diemXiu += 25; else diemTai += 25; }
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    return { pred, conf: Math.min(92, Math.max(55, Math.round(conf))) };
+  }
   
-  // Dự đoán 3 vị
-  let vi1 = 8, vi2 = 9, vi3 = 10;
-  let doTinCayVi = 55;
+  duDoanChanLe(tongData) {
+    if (tongData.length < 10) return { pred: "Chẵn", conf: 55 };
+    let diemChan = 0, diemLe = 0;
+    const last5 = tongData.slice(0, 5);
+    const chan5 = last5.filter(t => t % 2 === 0).length;
+    if (chan5 >= 4) diemLe += 35;
+    else if (chan5 <= 1) diemChan += 35;
+    else if (chan5 >= 3) diemChan += 25;
+    else diemLe += 25;
+    const last10 = tongData.slice(0, 10);
+    const chan10 = last10.filter(t => t % 2 === 0).length;
+    if (chan10 >= 8) diemLe += 35;
+    else if (chan10 <= 2) diemChan += 35;
+    else if (chan10 >= 7) diemLe += 28;
+    else if (chan10 <= 3) diemChan += 28;
+    let streak = 1;
+    for (let i = 1; i < tongData.length; i++) {
+      if ((tongData[i] % 2 === 0) === (tongData[i-1] % 2 === 0)) streak++;
+      else break;
+    }
+    if (streak >= 3) { if (tongData[0] % 2 === 0) diemLe += 25; else diemChan += 25; }
+    const pred = diemChan > diemLe ? "Chẵn" : "Lẻ";
+    let conf = Math.abs(diemChan - diemLe) / (diemChan + diemLe) * 100;
+    return { pred, conf: Math.min(90, Math.max(55, Math.round(conf))) };
+  }
   
-  if (tongData && tongData.length >= 15) {
+  duDoanVi(tongData) {
+    if (tongData.length < 15) {
+      return { vi1: 11, vi2: 14, vi3: 16, tong: 41, conf: 55 };
+    }
+    const duDoanTaiXiu = this.duDoanTaiXiu(tongData).pred;
     const freq = {4:0,5:0,6:0,7:0,8:0,9:0,10:0,11:0,12:0,13:0,14:0,15:0,16:0,17:0};
     for (let t of tongData.slice(0, 30)) if (t >= 4 && t <= 17) freq[t]++;
-    
-    if (taiXiu.du_doan === "Tài") {
-      const viTai = [11,12,13,14,15,16,17];
-      viTai.sort((a,b) => freq[b] - freq[a]);
-      vi1 = viTai[0] || 13;
-      vi2 = viTai[1] || 14;
-      vi3 = viTai[2] || 15;
-      doTinCayVi = 60 + Math.min(20, freq[vi1] + freq[vi2] + freq[vi3]);
-    } else {
-      const viXiu = [4,5,6,7,8,9,10];
-      viXiu.sort((a,b) => freq[b] - freq[a]);
-      vi1 = viXiu[0] || 6;
-      vi2 = viXiu[1] || 7;
-      vi3 = viXiu[2] || 8;
-      doTinCayVi = 60 + Math.min(20, freq[vi1] + freq[vi2] + freq[vi3]);
-    }
-    doTinCayVi = Math.min(85, doTinCayVi);
+    let candidates = duDoanTaiXiu === "Tài" ? [11,12,13,14,15,16,17] : [4,5,6,7,8,9,10];
+    candidates.sort((a, b) => freq[b] - freq[a]);
+    let selected = [candidates[0], candidates[1], candidates[2]];
+    selected.sort((a, b) => a - b);
+    let conf = 55 + Math.min(30, (freq[selected[0]] + freq[selected[1]] + freq[selected[2]]) / 3);
+    return { vi1: selected[0], vi2: selected[1], vi3: selected[2], tong: selected[0]+selected[1]+selected[2], conf: Math.min(85, Math.round(conf)) };
   }
   
-  return {
-    tai_xiu: taiXiu.du_doan,
-    do_tin_cay_tai_xiu: taiXiu.do_tin_cay,
-    vi: `${vi1}, ${vi2}, ${vi3}`,
-    tong_vi: vi1 + vi2 + vi3,
-    do_tin_cay_vi: doTinCayVi,
-    giai_thich: taiXiu.giai_thich
-  };
+  predict(lichSu, tongData) {
+    if (lichSu.length < 5) {
+      return { tai_xiu: "Tài", do_tin_cay_tai_xiu: 55, chan_le: "Chẵn", do_tin_cay_chan_le: 55, vi: "11, 14, 16", tong_vi: 41, do_tin_cay_vi: 55, giai_thich: "Chưa đủ dữ liệu" };
+    }
+    const taiXiu = this.duDoanTaiXiu(tongData);
+    const chanLe = this.duDoanChanLe(tongData);
+    const vi = this.duDoanVi(tongData);
+    return {
+      tai_xiu: taiXiu.pred, do_tin_cay_tai_xiu: taiXiu.conf,
+      chan_le: chanLe.pred, do_tin_cay_chan_le: chanLe.conf,
+      vi: `${vi.vi1}, ${vi.vi2}, ${vi.vi3}`, tong_vi: vi.tong, do_tin_cay_vi: vi.conf,
+      giai_thich: `Phân tích ${tongData.length} phiên`
+    };
+  }
 }
 
-// XÓC ĐĨA
-function duDoanXocDia(lichSu) {
-  if (lichSu.length < 5) return { du_doan: "Chẵn", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
-  
-  // Phân tích bệt
-  let betCount = 1;
-  for (let i = 1; i < lichSu.length; i++) {
-    if (lichSu[i] === lichSu[0]) betCount++;
-    else break;
-  }
-  if (betCount >= 4) {
-    return { du_doan: lichSu[0] === "Chẵn" ? "Lẻ" : "Chẵn", do_tin_cay: 78, giai_thich: `Bệt ${betCount} quá dài → bẻ cầu` };
-  }
-  if (betCount === 3) {
-    return { du_doan: lichSu[0] === "Chẵn" ? "Lẻ" : "Chẵn", do_tin_cay: 70, giai_thich: `Bệt 3 → chuẩn bị gãy` };
-  }
-  
-  // Phân tích cầu 1-1
-  let zigzag = 0;
-  for (let i = 1; i < 5; i++) if (lichSu[i] !== lichSu[i-1]) zigzag++;
-  if (zigzag >= 3) {
-    return { du_doan: lichSu[0] === "Chẵn" ? "Lẻ" : "Chẵn", do_tin_cay: 72, giai_thich: "Cầu 1-1 đang chạy → đánh ngược" };
-  }
-  
-  // Tần suất 5 phiên
-  const last5 = lichSu.slice(0, 5);
-  const chan5 = last5.filter(r => r === "Chẵn").length;
-  if (chan5 >= 4) return { du_doan: "Lẻ", do_tin_cay: 72, giai_thich: `Chẵn nóng ${chan5}/5 → bẻ Lẻ` };
-  if (chan5 <= 1) return { du_doan: "Chẵn", do_tin_cay: 72, giai_thich: `Lẻ nóng ${5-chan5}/5 → bẻ Chẵn` };
-  
-  // Theo xu hướng
-  return { du_doan: chan5 >= 3 ? "Chẵn" : "Lẻ", do_tin_cay: 60, giai_thich: `Theo xu hướng ${chan5}C-${5-chan5}L` };
+// 17. 789CLUB SICBO - Tương tự Sunwin Sicbo
+class Club789SicboAlgorithm extends SunwinSicboAlgorithm {
+  constructor() { super(); this.name = "CLUB789_SICBO"; }
 }
+
+// ==========================================
+// KHỞI TẠO ALGORITHM CHO TỪNG GAME
+// ==========================================
+const algorithms = {
+  'sunwin_tx': new SunwinTXAlgorithm(),
+  'lc79_tx': new LC79TXAlgorithm(),
+  'lc79_md5': new LC79MD5Algorithm(),
+  'betvip_tx': new BetvipTXAlgorithm(),
+  'betvip_md5': new BetvipMD5Algorithm(),
+  'club789_tx': new Club789TXAlgorithm(),
+  'b52': new B52Algorithm(),
+  'max789': new Max789Algorithm(),
+  'luck8_md5': new Luck8MD5Algorithm(),
+  'sumvin_md5': new SumvinMD5Algorithm(),
+  'gb68_thuong': new GB68ThuongAlgorithm(),
+  'gb68_md5': new GB68MD5Algorithm(),
+  'alo_hitclub_md5': new AloHitclubMD5Algorithm(),
+  'luck8_sicbo40': new Luck8Sicbo40Algorithm(),
+  'lc79_xocdia': new LC79XocDiaAlgorithm(),
+  'sunwin_sicbo': new SunwinSicboAlgorithm(),
+  'club789_sicbo': new Club789SicboAlgorithm()
+};
 
 // ==========================================
 // XỬ LÝ REQUEST
@@ -329,12 +623,10 @@ async function xuLyGame(gameKey) {
   const isSicbo = (gameKey === 'sunwin_sicbo' || gameKey === 'club789_sicbo');
   const isXocDia = (gameKey === 'lc79_xocdia');
   
-  // Cập nhật kết quả dự đoán trước
   if (lastPred && lastPred.prediction !== undefined) {
     let thucTe = data.ket_qua;
     let duDoanCu = isSicbo ? lastPred.prediction_tx : lastPred.prediction;
     const dung = updateStats(gameKey, thucTe, duDoanCu);
-    
     hist.lichSuDuDoan.unshift({
       phien_du_doan: lastPred.phien_du_doan,
       du_doan: duDoanCu,
@@ -344,12 +636,10 @@ async function xuLyGame(gameKey) {
       thoi_gian: new Date().toISOString()
     });
     if (hist.lichSuDuDoan.length > 100) hist.lichSuDuDoan.pop();
-    
     lastPred.actual = thucTe;
     lastPred.isCorrect = dung;
   }
   
-  // Cập nhật lịch sử
   hist.data.unshift(data.ket_qua);
   if (hist.data.length > 500) hist.data.pop();
   if (data.tong && typeof data.tong === 'number') {
@@ -361,7 +651,6 @@ async function xuLyGame(gameKey) {
     if (hist.diceData.length > 500) hist.diceData.pop();
   }
   
-  // Cache
   if (cacheDB[gameKey].has(data.phien)) {
     const cached = cacheDB[gameKey].get(data.phien);
     if (isSicbo) {
@@ -372,6 +661,8 @@ async function xuLyGame(gameKey) {
           phien_du_doan: data.phien + 1,
           tai_xiu: cached.prediction_tx,
           do_tin_cay_tai_xiu: cached.confidence_tx + '%',
+          chan_le: cached.prediction_cl,
+          do_tin_cay_chan_le: cached.confidence_cl + '%',
           vi: cached.vi,
           tong_vi: cached.tong_vi,
           do_tin_cay_vi: cached.confidence_vi + '%',
@@ -391,42 +682,33 @@ async function xuLyGame(gameKey) {
     }
   }
   
-  // Dự đoán mới
+  const algo = algorithms[gameKey];
   let prediction;
   if (isSicbo) {
-    const sicboResult = duDoanSicbo(hist.data, hist.tongData);
+    const sicboResult = algo.predict(hist.data, hist.tongData);
     prediction = {
-      tai_xiu: sicboResult.tai_xiu,
-      do_tin_cay_tai_xiu: sicboResult.do_tin_cay_tai_xiu,
-      vi: sicboResult.vi,
-      tong_vi: sicboResult.tong_vi,
-      do_tin_cay_vi: sicboResult.do_tin_cay_vi,
+      tai_xiu: sicboResult.tai_xiu, do_tin_cay_tai_xiu: sicboResult.do_tin_cay_tai_xiu,
+      chan_le: sicboResult.chan_le, do_tin_cay_chan_le: sicboResult.do_tin_cay_chan_le,
+      vi: sicboResult.vi, tong_vi: sicboResult.tong_vi, do_tin_cay_vi: sicboResult.do_tin_cay_vi,
       giai_thich: sicboResult.giai_thich
     };
     cacheDB[gameKey].set(data.phien, {
-      prediction_tx: prediction.tai_xiu,
-      confidence_tx: prediction.do_tin_cay_tai_xiu,
-      vi: prediction.vi,
-      tong_vi: prediction.tong_vi,
-      confidence_vi: prediction.do_tin_cay_vi,
-      reason: prediction.giai_thich,
-      phien_du_doan: data.phien + 1
+      prediction_tx: prediction.tai_xiu, confidence_tx: prediction.do_tin_cay_tai_xiu,
+      prediction_cl: prediction.chan_le, confidence_cl: prediction.do_tin_cay_chan_le,
+      vi: prediction.vi, tong_vi: prediction.tong_vi, confidence_vi: prediction.do_tin_cay_vi,
+      reason: prediction.giai_thich, phien_du_doan: data.phien + 1
     });
   } else if (isXocDia) {
-    prediction = duDoanXocDia(hist.data);
+    prediction = algo.predict(hist.data);
     cacheDB[gameKey].set(data.phien, {
-      prediction: prediction.du_doan,
-      confidence: prediction.do_tin_cay,
-      reason: prediction.giai_thich,
-      phien_du_doan: data.phien + 1
+      prediction: prediction.du_doan, confidence: prediction.do_tin_cay,
+      reason: prediction.giai_thich, phien_du_doan: data.phien + 1
     });
   } else {
-    prediction = tongHopDuDoan(hist.data, hist.tongData);
+    prediction = algo.predict(hist.data, hist.tongData, hist.diceData);
     cacheDB[gameKey].set(data.phien, {
-      prediction: prediction.du_doan,
-      confidence: prediction.do_tin_cay,
-      reason: prediction.giai_thich,
-      phien_du_doan: data.phien + 1
+      prediction: prediction.du_doan, confidence: prediction.do_tin_cay,
+      reason: prediction.giai_thich, phien_du_doan: data.phien + 1
     });
   }
   
@@ -441,11 +723,9 @@ async function xuLyGame(gameKey) {
       ketQuaTruoc: { phien: data.phien, ket_qua: data.ket_qua, dice: data.dice, tong: data.tong },
       duDoan: {
         phien_du_doan: data.phien + 1,
-        tai_xiu: prediction.tai_xiu,
-        do_tin_cay_tai_xiu: prediction.do_tin_cay_tai_xiu + '%',
-        vi: prediction.vi,
-        tong_vi: prediction.tong_vi,
-        do_tin_cay_vi: prediction.do_tin_cay_vi + '%',
+        tai_xiu: prediction.tai_xiu, do_tin_cay_tai_xiu: prediction.do_tin_cay_tai_xiu + '%',
+        chan_le: prediction.chan_le, do_tin_cay_chan_le: prediction.do_tin_cay_chan_le + '%',
+        vi: prediction.vi, tong_vi: prediction.tong_vi, do_tin_cay_vi: prediction.do_tin_cay_vi + '%',
         giai_thich: prediction.giai_thich
       },
       thongKe: statsDB[gameKey],
@@ -470,7 +750,7 @@ for (let gameKey in GAME_APIS) {
   app.get(endpoint, async (req, res) => {
     try {
       const result = await xuLyGame(gameKey);
-      res.json({ game: gameKey.toUpperCase(), ...result, author: '@tranhoang2286', version: 'PHÂN TÍCH THỰC THỤ' });
+      res.json({ game: gameKey.toUpperCase(), ...result, author: '@tranhoang2286', version: 'NO-RANDOM' });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -479,37 +759,45 @@ for (let gameKey in GAME_APIS) {
 
 app.get('/lich-su/:game', (req, res) => {
   const game = req.params.game;
-  if (!GAME_APIS[game]) {
-    return res.status(400).json({ error: 'Game không tồn tại', ds_game: Object.keys(GAME_APIS) });
-  }
+  if (!GAME_APIS[game]) return res.status(400).json({ error: 'Game không tồn tại', ds_game: Object.keys(GAME_APIS) });
   res.json({ game, lichSuDuDoan: historyDB[game].lichSuDuDoan.slice(0, 30), thongKe: statsDB[game] });
 });
 
 app.get('/lich-su', (req, res) => {
-  const allStats = {};
-  for (let key in GAME_APIS) allStats[key] = statsDB[key];
+  const allStats = {}; for (let key in GAME_APIS) allStats[key] = statsDB[key];
   res.json({ thong_ke_tat_ca_game: allStats, tong_so_game: Object.keys(GAME_APIS).length });
 });
 
 app.get('/', (req, res) => {
   res.json({
-    name: '🎲 17 GAME - THUẬT TOÁN PHÂN TÍCH THỰC THỤ 🎲',
+    name: '🎲 17 GAME - MỖI GAME THUẬT TOÁN RIÊNG (KHÔNG RANDOM) 🎲',
     author: '@tranhoang2286',
-    version: '42.0 - KHÔNG THEO CẦU KIỂU NGU',
+    version: '43.0 - NO RANDOM',
     endpoints: Object.keys(GAME_APIS).map(k => `/${k.replace(/_/g, '/')}`),
     thuat_toan: {
-      tan_suat_10: 'Bẻ cầu khi Tài/Xỉu quá 7/10 phiên',
-      bet: 'Phá cầu khi bệt 3-4-5 phiên',
-      cau_1_1: 'Nhận diện cầu xen kẽ',
-      tong_diem: 'Phân tích xu hướng tổng điểm',
-      markov: 'Xác suất Markov bậc 2',
-      xu_huong_5: 'Theo xu hướng 5 phiên (chỉ khi không có tín hiệu)'
-    }
+      sunwin_tx: 'Tần suất 10 phiên + Bệt',
+      lc79_tx: 'Tổng điểm + Bệt',
+      lc79_md5: 'Markov + Tần suất',
+      betvip_tx: 'Martingale',
+      betvip_md5: 'Xúc xắc + Xu hướng',
+      club789_tx: 'Cầu 1-1',
+      b52: 'RSI',
+      max789: 'Fibonacci + Chu kỳ',
+      luck8_md5: 'KNN',
+      sumvin_md5: 'Cầu 2-1',
+      gb68_thuong: 'Cầu 3 phiên',
+      gb68_md5: 'Tổng điểm',
+      alo_hitclub_md5: 'Tổng hợp xúc xắc',
+      luck8_sicbo40: 'Cầu 3 phiên tốc độ',
+      lc79_xocdia: 'Chẵn/Lẻ + Bệt',
+      sunwin_sicbo: '3 kết quả (Tài/Xỉu, Chẵn/Lẻ, 3 vị)',
+      club789_sicbo: '3 kết quả (Tài/Xỉu, Chẵn/Lẻ, 3 vị)'
+    },
+    cam_ket: '🔴 HOÀN TOÀN KHÔNG CÓ Math.random() - 100% DỰA TRÊN THỐNG KÊ 🔴'
   });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🎲 ${Object.keys(GAME_APIS).length} GAME - PORT ${PORT}`);
-  console.log(`✅ Thuật toán: Tần suất | Bệt | Cầu 1-1 | Tổng điểm | Markov | Xu hướng`);
-  console.log(`✅ KHÔNG còn kiểu "ra gì đoán nấy" nữa`);
+  console.log(`\n🎲 ${Object.keys(GAME_APIS).length} GAME - MỖI GAME THUẬT TOÁN RIÊNG - PORT ${PORT}`);
+  console.log(`🔴 CAM KẾT: KHÔNG CÓ RANDOM - 100% PHÂN TÍCH THỐNG KÊ 🔴`);
 });
