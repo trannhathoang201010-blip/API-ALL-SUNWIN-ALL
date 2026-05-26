@@ -8,32 +8,90 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 // ==========================================
-// API NGUỒN (17 GAME)
+// DANH SÁCH API MỚI NHẤT (29 GAME)
 // ==========================================
 const GAME_APIS = {
-  // Tài Xỉu
+  // SUNWIN (4)
   'sunwin_tx': 'https://era-technology-particular-domestic.trycloudflare.com/api/tx',
+  'sunwin_sicbo': 'https://enquiries-indices-navigator-mega.trycloudflare.com/api/sunsicbo',
+  'sunwin_sunphung': 'https://ntsc-fly-questionnaire-divx.trycloudflare.com/api/sunphung',
+  'sunwin_xocdia_live': 'https://suggested-knew-ban-furniture.trycloudflare.com/api/xdlive',
+  
+  // HITCLUB / GO88 (3)
+  'hitclub_tx': 'https://preference-assuming-picnic-concentration.trycloudflare.com/api/tx',
+  'hitclub_txmd5': 'https://preference-assuming-picnic-concentration.trycloudflare.com/api/txmd5',
+  'hitclub_sicbo': 'https://implement-university-orders-consciousness.trycloudflare.com/sicbo/hitclub',
+  
+  // LC79 (3)
   'lc79_tx': 'https://strategy-cube-vinyl-warcraft.trycloudflare.com/api/tx',
-  'lc79_md5': 'https://strategy-cube-vinyl-warcraft.trycloudflare.com/api/txmd5',
-  'betvip_tx': 'https://eve-hydrocodone-offshore-eagle.trycloudflare.com/api/tx',
-  'betvip_md5': 'https://eve-hydrocodone-offshore-eagle.trycloudflare.com/api/txmd5',
-  'club789_tx': 'https://venue-integrate-aged-heavily.trycloudflare.com/api/tx',
-  'b52': 'https://flex-knights-agree-grass.trycloudflare.com/txmd5',
-  'max789': 'https://deutschland-mandatory-upon-changelog.trycloudflare.com/api/tx',
-  'luck8_md5': 'https://qld-incentives-tion-boost.trycloudflare.com/api/txmd5',
-  'sumvin_md5': 'https://cricket-compressed-list-suppose.trycloudflare.com/api/md5',
-  'gb68_thuong': 'https://description-zen-dog-films.trycloudflare.com/api/68/thuong',
-  'gb68_md5': 'https://profiles-televisions-sic-stay.trycloudflare.com/api/68/md5',
-  'alo_hitclub_md5': 'https://preference-assuming-picnic-concentration.trycloudflare.com/api/txmd5',
-  'luck8_sicbo40': 'https://qld-incentives-tion-boost.trycloudflare.com/api/sicbo40',
+  'lc79_txmd5': 'https://strategy-cube-vinyl-warcraft.trycloudflare.com/api/txmd5',
   'lc79_xocdia': 'https://strategy-cube-vinyl-warcraft.trycloudflare.com/api/xocdia',
-  // Sicbo
-  'sunwin_sicbo': 'https://api.wsktnus8.net/v2/history/getLastResult?gameId=ktrng_3979&size=100&tableId=39791215743193&curPage=1',
-  'club789_sicbo': 'https://demo7892.fun/history/getLastResult?gameId=ktrng_3986&size=100&tableId=398625062021&curPage=1'
+  
+  // BETVIP (2)
+  'betvip_tx': 'https://eve-hydrocodone-offshore-eagle.trycloudflare.com/api/tx',
+  'betvip_txmd5': 'https://eve-hydrocodone-offshore-eagle.trycloudflare.com/api/txmd5',
+  
+  // 789CLUB (2)
+  'club789_tx': 'https://venue-integrate-aged-heavily.trycloudflare.com/api/tx',
+  'club789_sicbo': 'https://implement-university-orders-consciousness.trycloudflare.com/sicbo/789club',
+  
+  // B52 (2)
+  'b52_txmd5': 'https://flex-knights-agree-grass.trycloudflare.com/txmd5',
+  'b52_sicbo': 'https://implement-university-orders-consciousness.trycloudflare.com/sicbo/b52',
+  
+  // MAX789 (1)
+  'max789_txmd5': 'https://deutschland-mandatory-upon-changelog.trycloudflare.com/api/tx',
+  
+  // SON789 (1)
+  'son789_tx': 'https://with-boating-signed-turn.trycloudflare.com/api/tx',
+  
+  // LUCK8 (2)
+  'luck8_txmd5': 'https://qld-incentives-tion-boost.trycloudflare.com/api/txmd5',
+  'luck8_sicbo40': 'https://qld-incentives-tion-boost.trycloudflare.com/api/sicbo40',
+  
+  // SUMVIN (1)
+  'sumvin_txmd5': 'https://cricket-compressed-list-suppose.trycloudflare.com/api/md5',
+  
+  // 68GB (2)
+  'gb68_thuong': 'https://description-zen-dog-films.trycloudflare.com/api/68/thuong',
+  'gb68_txmd5': 'https://profiles-televisions-sic-stay.trycloudflare.com/api/68/md5',
+  
+  // OGK.FAN (1)
+  'ogk_txmd5': 'https://liver-specs-processors-css.trycloudflare.com/api/txmd5/latest',
+  
+  // BCR V1 (1)
+  'bcr_v1': 'https://employers-hormone-land-idaho.trycloudflare.com/api/bcr',
+  
+  // BCR V2 (25 bàn)
+  'bcr_1': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/1',
+  'bcr_2': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/2',
+  'bcr_3': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/3',
+  'bcr_4': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/4',
+  'bcr_5': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/5',
+  'bcr_6': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/6',
+  'bcr_7': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/7',
+  'bcr_8': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/8',
+  'bcr_9': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/9',
+  'bcr_10': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/10',
+  'bcr_C01': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C01',
+  'bcr_C02': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C02',
+  'bcr_C03': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C03',
+  'bcr_C04': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C04',
+  'bcr_C05': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C05',
+  'bcr_C06': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C06',
+  'bcr_C07': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C07',
+  'bcr_C08': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C08',
+  'bcr_C09': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C09',
+  'bcr_C10': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C10',
+  'bcr_C11': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C11',
+  'bcr_C12': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C12',
+  'bcr_C13': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C13',
+  'bcr_C14': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C14',
+  'bcr_C15': 'https://nurse-involves-avoiding-farmers.trycloudflare.com/api/bcr/C15'
 };
 
 // ==========================================
-// LƯU TRỮ
+// LƯU TRỮ DỮ LIỆU
 // ==========================================
 const historyDB = {};
 const cacheDB = {};
@@ -60,14 +118,35 @@ function updateStats(game, thucTe, duDoan) {
 async function fetchGameData(url, gameKey) {
   try {
     const headers = {};
-    if (gameKey === 'club789_sicbo') {
+    if (gameKey.includes('bcr_')) {
       headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
-      headers['Referer'] = 'https://demo7892.fun/';
     }
+    if (gameKey === 'club789_sicbo') {
+      headers['Referer'] = 'https://implement-university-orders-consciousness.trycloudflare.com/';
+    }
+    
     const res = await axios.get(url, { timeout: 10000, headers });
     const data = res.data;
     if (!data) return null;
     
+    // Sun Phụng
+    if (gameKey === 'sunwin_sunphung') {
+      if (data.success && data.data) {
+        let ketQua = data.data.he_so >= 4 ? 'Tài' : 'Xỉu';
+        return { phien: data.data.phien, ket_qua: ketQua, dice: [], tong: data.data.he_so };
+      }
+      return null;
+    }
+    
+    // Xóc đĩa live
+    if (gameKey === 'sunwin_xocdia_live') {
+      if (data.ket_qua_truyen_thong) {
+        return { phien: data.phien, ket_qua: data.ket_qua_truyen_thong, dice: [], tong: null };
+      }
+      return null;
+    }
+    
+    // Xóc đĩa LC79
     if (gameKey === 'lc79_xocdia') {
       if (data.ket_qua_truyen_thong) {
         return { phien: data.phien, ket_qua: data.ket_qua_truyen_thong, dice: [], tong: null };
@@ -75,21 +154,30 @@ async function fetchGameData(url, gameKey) {
       return null;
     }
     
-    if (gameKey === 'sunwin_sicbo' || gameKey === 'club789_sicbo') {
-      if (data?.data?.resultList?.length) {
-        const last = data.data.resultList[0];
-        const score = last.score;
-        const resultType = last.resultType;
-        const faces = last.facesList;
-        const phien = parseInt(last.gameNum.replace('#', ''));
-        let ketQua = resultType === 3 ? 'Tài' : (resultType === 4 ? 'Xỉu' : 'Bão');
+    // Sicbo
+    if (gameKey.includes('sicbo')) {
+      if (data.ket_qua) {
+        let ketQua = data.ket_qua === 'Tài' ? 'Tài' : (data.ket_qua === 'Xỉu' ? 'Xỉu' : 'Bão');
         if (ketQua === 'Bão') return null;
-        return { phien, ket_qua: ketQua, tong: score, dice: faces };
+        return { phien: data.phien, ket_qua: ketQua, dice: [data.xuc_xac_1, data.xuc_xac_2, data.xuc_xac_3], tong: data.tong };
       }
       return null;
     }
     
+    // BCR
+    if (gameKey.startsWith('bcr_')) {
+      if (data.last_5 && data.last_5.length > 0) {
+        const lastResult = data.last_5[data.last_5.length - 1];
+        let ketQua = lastResult.winner === 'Banker' ? 'Cái' : (lastResult.winner === 'Player' ? 'Con' : 'Hòa');
+        let phien = data.phien || Date.now();
+        return { phien, ket_qua: ketQua, dice: [], tong: null, bcr_data: data };
+      }
+      return null;
+    }
+    
+    // Tài Xỉu thông thường
     if (!data.ket_qua) return null;
+    
     let ketQua = data.ket_qua;
     if (ketQua === 'tài' || ketQua === 'TAI' || ketQua === 'Tài' || ketQua === 'TÀI') ketQua = 'Tài';
     else if (ketQua === 'xiu' || ketQua === 'XIU' || ketQua === 'Xỉu' || ketQua === 'XỈU') ketQua = 'Xỉu';
@@ -98,7 +186,7 @@ async function fetchGameData(url, gameKey) {
     
     let phien = data.phien;
     if (!phien) phien = Date.now();
-    if (gameKey === 'b52' && phien) phien = parseInt(String(phien).replace('#', ''));
+    if (gameKey === 'b52_txmd5' && phien) phien = parseInt(String(phien).replace('#', ''));
     
     return { 
       phien, 
@@ -113,7 +201,7 @@ async function fetchGameData(url, gameKey) {
 }
 
 // ==========================================
-// ========== THUẬT TOÁN RIÊNG CHO TỪNG GAME (KHÔNG RANDOM) ==========
+// ========== THUẬT TOÁN (GIỮ NGUYÊN) ==========
 // ==========================================
 
 // 1. SUNWIN TX - Chuyên phân tích tần suất 10 phiên và bệt
@@ -123,7 +211,6 @@ class SunwinTXAlgorithm {
     
     let diemTai = 0, diemXiu = 0;
     
-    // Tần suất 10 phiên (ưu tiên cao nhất)
     if (lichSu.length >= 10) {
       const last10 = lichSu.slice(0, 10);
       const tai10 = last10.filter(r => r === "Tài").length;
@@ -136,7 +223,6 @@ class SunwinTXAlgorithm {
       else { diemTai += 60; diemXiu += 60; }
     }
     
-    // Bệt
     let bet = 1;
     for (let i = 1; i < lichSu.length; i++) {
       if (lichSu[i] === lichSu[0]) bet++;
@@ -160,7 +246,6 @@ class LC79TXAlgorithm {
     
     let diemTai = 0, diemXiu = 0;
     
-    // Tổng điểm
     if (tongData && tongData.length >= 15) {
       const avg = tongData.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
       const prevAvg = tongData.slice(10, 20).reduce((a, b) => a + b, 0) / 10;
@@ -172,7 +257,6 @@ class LC79TXAlgorithm {
       else if (avg < 9.5) diemTai += 28;
     }
     
-    // Bệt
     let bet = 1;
     for (let i = 1; i < lichSu.length; i++) {
       if (lichSu[i] === lichSu[0]) bet++;
@@ -195,7 +279,6 @@ class LC79MD5Algorithm {
     
     let diemTai = 0, diemXiu = 0;
     
-    // Markov bậc 2
     const map = new Map();
     for (let i = 0; i < lichSu.length - 2; i++) {
       const key = lichSu[i] + ',' + lichSu[i+1];
@@ -211,7 +294,6 @@ class LC79MD5Algorithm {
       else diemXiu += 75;
     }
     
-    // Tần suất 10 phiên
     if (lichSu.length >= 10) {
       const last10 = lichSu.slice(0, 10);
       const tai10 = last10.filter(r => r === "Tài").length;
@@ -490,7 +572,7 @@ class LC79XocDiaAlgorithm {
   }
 }
 
-// 16. SUNWIN SICBO - Chuyên 3 kết quả (Tài/Xỉu + Chẵn/Lẻ + 3 vị)
+// 16. SUNWIN SICBO - Chuyên 3 kết quả
 class SunwinSicboAlgorithm {
   duDoanTaiXiu(tongData) {
     if (tongData.length < 10) return { pred: "Tài", conf: 55 };
@@ -581,9 +663,152 @@ class SunwinSicboAlgorithm {
   }
 }
 
-// 17. 789CLUB SICBO - Tương tự Sunwin Sicbo
+// 17. SUN PHỤNG
+class SunPhungAlgorithm {
+  predict(lichSu, heSo) {
+    if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let diemTai = 0, diemXiu = 0;
+    
+    if (heSo >= 4.5) diemXiu += 35;
+    else if (heSo >= 4.0) diemXiu += 28;
+    else if (heSo <= 2.5) diemTai += 35;
+    else if (heSo <= 3.0) diemTai += 28;
+    
+    let bet = 1;
+    for (let i = 1; i < lichSu.length; i++) {
+      if (lichSu[i] === lichSu[0]) bet++;
+      else break;
+    }
+    if (bet >= 4) { if (lichSu[0] === "Tài") diemXiu += 45; else diemTai += 45; }
+    else if (bet === 3) { if (lichSu[0] === "Tài") diemXiu += 38; else diemTai += 38; }
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    if (tai5 >= 4) diemXiu += 30;
+    else if (tai5 <= 1) diemTai += 30;
+    else if (tai5 >= 3) diemTai += 22;
+    else diemXiu += 22;
+    
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    return { du_doan: pred, do_tin_cay: Math.min(88, Math.max(55, Math.round(conf))), giai_thich: `Hệ số ${heSo} + Bệt + Xu hướng` };
+  }
+}
+
+// 18. SON789 TX
+class Son789TXAlgorithm {
+  predict(lichSu) {
+    if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let diemTai = 0, diemXiu = 0;
+    
+    let bet = 1;
+    for (let i = 1; i < lichSu.length; i++) {
+      if (lichSu[i] === lichSu[0]) bet++;
+      else break;
+    }
+    if (bet >= 5) { if (lichSu[0] === "Tài") diemXiu += 88; else diemTai += 88; }
+    else if (bet === 4) { if (lichSu[0] === "Tài") diemXiu += 80; else diemTai += 80; }
+    else if (bet === 3) { if (lichSu[0] === "Tài") diemXiu += 72; else diemTai += 72; }
+    else { if (lichSu[0] === "Tài") diemTai += 62; else diemXiu += 62; }
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    if (tai5 >= 4) diemXiu += 40;
+    else if (tai5 <= 1) diemTai += 40;
+    else if (tai5 >= 3) diemTai += 30;
+    else diemXiu += 30;
+    
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    return { du_doan: pred, do_tin_cay: Math.min(90, Math.max(55, Math.round(conf))), giai_thich: `Bệt + Xu hướng` };
+  }
+}
+
+// 19. OGK.FAN
+class OGKAlgorithm {
+  predict(lichSu) {
+    if (lichSu.length < 5) return { du_doan: "Tài", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let diemTai = 0, diemXiu = 0;
+    
+    const last5 = lichSu.slice(0, 5);
+    const tai5 = last5.filter(r => r === "Tài").length;
+    if (tai5 >= 4) diemXiu += 45;
+    else if (tai5 <= 1) diemTai += 45;
+    else if (tai5 >= 3) diemTai += 32;
+    else diemXiu += 32;
+    
+    let bet = 1;
+    for (let i = 1; i < lichSu.length; i++) {
+      if (lichSu[i] === lichSu[0]) bet++;
+      else break;
+    }
+    if (bet >= 4) { if (lichSu[0] === "Tài") diemXiu += 40; else diemTai += 40; }
+    else if (bet === 3) { if (lichSu[0] === "Tài") diemXiu += 32; else diemTai += 32; }
+    
+    const pred = diemTai > diemXiu ? "Tài" : "Xỉu";
+    let conf = Math.abs(diemTai - diemXiu) / (diemTai + diemXiu) * 100;
+    return { du_doan: pred, do_tin_cay: Math.min(88, Math.max(55, Math.round(conf))), giai_thich: `Xu hướng + Bệt` };
+  }
+}
+
+// 20. HITCLUB SICBO
+class HitclubSicboAlgorithm extends SunwinSicboAlgorithm {
+  constructor() { super(); this.name = "HITCLUB_SICBO"; }
+}
+
+// 21. B52 SICBO
+class B52SicboAlgorithm extends SunwinSicboAlgorithm {
+  constructor() { super(); this.name = "B52_SICBO"; }
+}
+
+// 22. 789CLUB SICBO
 class Club789SicboAlgorithm extends SunwinSicboAlgorithm {
   constructor() { super(); this.name = "CLUB789_SICBO"; }
+}
+
+// 23. BCR V1
+class BCRV1Algorithm {
+  predict(bcrData) {
+    if (!bcrData) return { du_doan: "Cái", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    return { du_doan: "Cái", do_tin_cay: 60, giai_thich: "Mặc định Cái" };
+  }
+}
+
+// 24. BCR V2
+class BCRV2Algorithm {
+  predict(bcrData) {
+    if (!bcrData || !bcrData.stats_55) return { du_doan: "Cái", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    const stats = bcrData.stats_55;
+    const banker = stats.banker || 0;
+    const player = stats.player || 0;
+    const total = banker + player;
+    
+    if (total < 5) return { du_doan: "Cái", do_tin_cay: 55, giai_thich: "Chưa đủ dữ liệu" };
+    
+    let tyLeBanker = banker / total;
+    if (tyLeBanker > 0.65) return { du_doan: "Con", do_tin_cay: 78, giai_thich: `Cái nóng ${banker}/${total} - bẻ Con` };
+    if (tyLeBanker < 0.35) return { du_doan: "Cái", do_tin_cay: 78, giai_thich: `Con nóng ${player}/${total} - bẻ Cái` };
+    
+    const last5 = bcrData.last_5 || [];
+    if (last5.length >= 3) {
+      let streak = 1;
+      for (let i = last5.length - 2; i >= 0; i--) {
+        if (last5[i].winner === last5[last5.length-1].winner) streak++;
+        else break;
+      }
+      if (streak >= 3) {
+        const lastWinner = last5[last5.length-1].winner;
+        const pred = lastWinner === 'Banker' ? 'Con' : 'Cái';
+        return { du_doan: pred, do_tin_cay: 74, giai_thich: `Bệt ${streak} - bẻ cầu` };
+      }
+    }
+    
+    return { du_doan: banker > player ? "Cái" : "Con", do_tin_cay: 62, giai_thich: `Theo xu hướng (${banker}-${player})` };
+  }
 }
 
 // ==========================================
@@ -591,23 +816,40 @@ class Club789SicboAlgorithm extends SunwinSicboAlgorithm {
 // ==========================================
 const algorithms = {
   'sunwin_tx': new SunwinTXAlgorithm(),
-  'lc79_tx': new LC79TXAlgorithm(),
-  'lc79_md5': new LC79MD5Algorithm(),
-  'betvip_tx': new BetvipTXAlgorithm(),
-  'betvip_md5': new BetvipMD5Algorithm(),
-  'club789_tx': new Club789TXAlgorithm(),
-  'b52': new B52Algorithm(),
-  'max789': new Max789Algorithm(),
-  'luck8_md5': new Luck8MD5Algorithm(),
-  'sumvin_md5': new SumvinMD5Algorithm(),
-  'gb68_thuong': new GB68ThuongAlgorithm(),
-  'gb68_md5': new GB68MD5Algorithm(),
-  'alo_hitclub_md5': new AloHitclubMD5Algorithm(),
-  'luck8_sicbo40': new Luck8Sicbo40Algorithm(),
-  'lc79_xocdia': new LC79XocDiaAlgorithm(),
   'sunwin_sicbo': new SunwinSicboAlgorithm(),
-  'club789_sicbo': new Club789SicboAlgorithm()
+  'sunwin_sunphung': new SunPhungAlgorithm(),
+  'sunwin_xocdia_live': new LC79XocDiaAlgorithm(),
+  'hitclub_tx': new SunwinTXAlgorithm(),
+  'hitclub_txmd5': new LC79MD5Algorithm(),
+  'hitclub_sicbo': new HitclubSicboAlgorithm(),
+  'lc79_tx': new LC79TXAlgorithm(),
+  'lc79_txmd5': new LC79MD5Algorithm(),
+  'lc79_xocdia': new LC79XocDiaAlgorithm(),
+  'betvip_tx': new BetvipTXAlgorithm(),
+  'betvip_txmd5': new BetvipMD5Algorithm(),
+  'club789_tx': new Club789TXAlgorithm(),
+  'club789_sicbo': new Club789SicboAlgorithm(),
+  'b52_txmd5': new B52Algorithm(),
+  'b52_sicbo': new B52SicboAlgorithm(),
+  'max789_txmd5': new Max789Algorithm(),
+  'son789_tx': new Son789TXAlgorithm(),
+  'luck8_txmd5': new Luck8MD5Algorithm(),
+  'luck8_sicbo40': new Luck8Sicbo40Algorithm(),
+  'sumvin_txmd5': new SumvinMD5Algorithm(),
+  'gb68_thuong': new GB68ThuongAlgorithm(),
+  'gb68_txmd5': new GB68MD5Algorithm(),
+  'ogk_txmd5': new OGKAlgorithm(),
+  'bcr_v1': new BCRV1Algorithm()
 };
+
+// Thêm BCR V2 (25 bàn)
+for (let i = 1; i <= 10; i++) {
+  algorithms[`bcr_${i}`] = new BCRV2Algorithm();
+}
+for (let i = 1; i <= 15; i++) {
+  const ci = i < 10 ? `C0${i}` : `C${i}`;
+  algorithms[`bcr_${ci}`] = new BCRV2Algorithm();
+}
 
 // ==========================================
 // XỬ LÝ REQUEST
@@ -620,8 +862,10 @@ async function xuLyGame(gameKey) {
   
   const hist = historyDB[gameKey];
   const lastPred = cacheDB[gameKey].get(data.phien - 1);
-  const isSicbo = (gameKey === 'sunwin_sicbo' || gameKey === 'club789_sicbo');
-  const isXocDia = (gameKey === 'lc79_xocdia');
+  const isSicbo = (gameKey.includes('sicbo'));
+  const isXocDia = (gameKey.includes('xocdia'));
+  const isSunPhung = (gameKey === 'sunwin_sunphung');
+  const isBCR = (gameKey.startsWith('bcr_'));
   
   if (lastPred && lastPred.prediction !== undefined) {
     let thucTe = data.ket_qua;
@@ -698,8 +942,14 @@ async function xuLyGame(gameKey) {
       vi: prediction.vi, tong_vi: prediction.tong_vi, confidence_vi: prediction.do_tin_cay_vi,
       reason: prediction.giai_thich, phien_du_doan: data.phien + 1
     });
-  } else if (isXocDia) {
-    prediction = algo.predict(hist.data);
+  } else if (isSunPhung) {
+    prediction = algo.predict(hist.data, data.tong);
+    cacheDB[gameKey].set(data.phien, {
+      prediction: prediction.du_doan, confidence: prediction.do_tin_cay,
+      reason: prediction.giai_thich, phien_du_doan: data.phien + 1
+    });
+  } else if (isBCR) {
+    prediction = algo.predict(data.bcr_data);
     cacheDB[gameKey].set(data.phien, {
       prediction: prediction.du_doan, confidence: prediction.do_tin_cay,
       reason: prediction.giai_thich, phien_du_doan: data.phien + 1
@@ -750,12 +1000,25 @@ for (let gameKey in GAME_APIS) {
   app.get(endpoint, async (req, res) => {
     try {
       const result = await xuLyGame(gameKey);
-      res.json({ game: gameKey.toUpperCase(), ...result, author: '@tranhoang2286', version: 'NO-RANDOM' });
+      res.json({ game: gameKey.toUpperCase(), ...result, author: '@tranhoang2286', version: '29 GAME' });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
 }
+
+app.get('/bcr/all', async (req, res) => {
+  const results = {};
+  for (let key in GAME_APIS) {
+    if (key.startsWith('bcr_')) {
+      try {
+        const result = await xuLyGame(key);
+        results[key.replace('bcr_', '')] = result;
+      } catch (e) { results[key.replace('bcr_', '')] = { error: e.message }; }
+    }
+  }
+  res.json({ game: 'BCR', all_bans: results, author: '@tranhoang2286' });
+});
 
 app.get('/lich-su/:game', (req, res) => {
   const game = req.params.game;
@@ -770,34 +1033,30 @@ app.get('/lich-su', (req, res) => {
 
 app.get('/', (req, res) => {
   res.json({
-    name: '🎲 17 GAME - MỖI GAME THUẬT TOÁN RIÊNG (KHÔNG RANDOM) 🎲',
+    name: '🎲 29 GAME - TÀI XỈU + SICBO + XÓC ĐĨA + BCR 🎲',
     author: '@tranhoang2286',
-    version: '43.0 - NO RANDOM',
+    version: '44.0 - API MỚI NHẤT 24/5/2026',
     endpoints: Object.keys(GAME_APIS).map(k => `/${k.replace(/_/g, '/')}`),
-    thuat_toan: {
-      sunwin_tx: 'Tần suất 10 phiên + Bệt',
-      lc79_tx: 'Tổng điểm + Bệt',
-      lc79_md5: 'Markov + Tần suất',
-      betvip_tx: 'Martingale',
-      betvip_md5: 'Xúc xắc + Xu hướng',
-      club789_tx: 'Cầu 1-1',
-      b52: 'RSI',
-      max789: 'Fibonacci + Chu kỳ',
-      luck8_md5: 'KNN',
-      sumvin_md5: 'Cầu 2-1',
-      gb68_thuong: 'Cầu 3 phiên',
-      gb68_md5: 'Tổng điểm',
-      alo_hitclub_md5: 'Tổng hợp xúc xắc',
-      luck8_sicbo40: 'Cầu 3 phiên tốc độ',
-      lc79_xocdia: 'Chẵn/Lẻ + Bệt',
-      sunwin_sicbo: '3 kết quả (Tài/Xỉu, Chẵn/Lẻ, 3 vị)',
-      club789_sicbo: '3 kết quả (Tài/Xỉu, Chẵn/Lẻ, 3 vị)'
-    },
-    cam_ket: '🔴 HOÀN TOÀN KHÔNG CÓ Math.random() - 100% DỰA TRÊN THỐNG KÊ 🔴'
+    danh_sach_game: {
+      sunwin: 'TX, Sicbo, Sun Phụng, Xóc đĩa live',
+      hitclub: 'TX, TX MD5, Sicbo',
+      lc79: 'TX, TX MD5, Xóc đĩa',
+      betvip: 'TX, TX MD5',
+      club789: 'TX, Sicbo',
+      b52: 'TX MD5, Sicbo',
+      max789: 'TX MD5',
+      son789: 'TX',
+      luck8: 'TX MD5, Sicbo 40s',
+      sumvin: 'TX MD5',
+      gb68: 'Thường, MD5',
+      ogk: 'TX MD5',
+      bcr: 'V1 + V2 (25 bàn)'
+    }
   });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🎲 ${Object.keys(GAME_APIS).length} GAME - MỖI GAME THUẬT TOÁN RIÊNG - PORT ${PORT}`);
-  console.log(`🔴 CAM KẾT: KHÔNG CÓ RANDOM - 100% PHÂN TÍCH THỐNG KÊ 🔴`);
+  console.log(`\n🎲 ${Object.keys(GAME_APIS).length} GAME - PORT ${PORT}`);
+  console.log(`✅ Cập nhật API mới nhất 24/5/2026`);
+  console.log(`✅ Giữ nguyên toàn bộ thuật toán`);
 });
