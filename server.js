@@ -93,7 +93,8 @@ for (let key in GAME_APIS) {
     do_chinh_xac_meta: 0,
     trong_so: 0.65,
     so_lan_phat_hien_cau: 0,
-    ty_le_cau_dung: 0
+    ty_le_cau_dung: 0,
+    last_calibration: Date.now()
   };
   learningDB[key] = {
     trong_so_thuat_toan: {},
@@ -107,7 +108,7 @@ for (let key in GAME_APIS) {
 // ==========================================
 function updateStats(game, thucTe, duDoan, doTinCayMeta, loaiCau) {
   const st = statsDB[game];
-  if (!st || !thucTe || !duDoan) return;
+  if (!st || !thucTe || !duDoan) return false;
   const dung = (thucTe === duDoan);
   if (dung) st.dung++;
   else st.sai++;
@@ -138,17 +139,6 @@ function updateStats(game, thucTe, duDoan, doTinCayMeta, loaiCau) {
     const tongCau = learningDB[game].tan_suat_dung[loaiCau].dung + learningDB[game].tan_suat_dung[loaiCau].sai;
     const tyLe = tongCau > 0 ? (learningDB[game].tan_suat_dung[loaiCau].dung / tongCau) * 100 : 50;
     learningDB[game].trong_so_thuat_toan[loaiCau] = Math.min(2.0, Math.max(0.5, tyLe / 50));
-  }
-  
-  // Cập nhật học cầu
-  if (loaiCau === 'CẦU BỆT') {
-    cauHocDB[game].cau_bet.ty_le_dung = (cauHocDB[game].cau_bet.ty_le_dung * (cauHocDB[game].cau_bet.so_lan - 1) + (dung ? 100 : 0)) / cauHocDB[game].cau_bet.so_lan;
-  } else if (loaiCau === 'CẦU 1-1') {
-    cauHocDB[game].cau_1_1.ty_le_dung = (cauHocDB[game].cau_1_1.ty_le_dung * (cauHocDB[game].cau_1_1.so_lan - 1) + (dung ? 100 : 0)) / cauHocDB[game].cau_1_1.so_lan;
-  } else if (loaiCau === 'CẦU 2-1') {
-    cauHocDB[game].cau_2_1.ty_le_dung = (cauHocDB[game].cau_2_1.ty_le_dung * (cauHocDB[game].cau_2_1.so_lan - 1) + (dung ? 100 : 0)) / cauHocDB[game].cau_2_1.so_lan;
-  } else if (loaiCau === 'CẦU 3-2') {
-    cauHocDB[game].cau_3_2.ty_le_dung = (cauHocDB[game].cau_3_2.ty_le_dung * (cauHocDB[game].cau_3_2.so_lan - 1) + (dung ? 100 : 0)) / cauHocDB[game].cau_3_2.so_lan;
   }
   
   return dung;
@@ -224,128 +214,106 @@ async function fetchGameData(url, gameKey) {
 }
 
 // ==========================================
-// ========== 30 THUẬT TOÁN CON ==========
+// ========== 20 THUẬT TOÁN DỰ ĐOÁN (KHÔNG RANDOM) ==========
 // ==========================================
 
 function thuatToan_Bet(lichSu) {
-  if (lichSu.length < 3) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'BET' };
+  if (lichSu.length < 3) return { duDoan: null, doTinCay: 0, loai: 'BET' };
   let streak = 1;
   for (let i = 1; i < lichSu.length; i++) {
     if (lichSu[i] === lichSu[0]) streak++;
     else break;
   }
-  if (streak >= 7) {
-    if (lichSu[0] === "Tài") return { diemTai: 0, diemXiu: 98, doTinCay: 98, soPP: 1, loai: 'BET' };
-    else return { diemTai: 98, diemXiu: 0, doTinCay: 98, soPP: 1, loai: 'BET' };
-  }
-  if (streak === 6) {
-    if (lichSu[0] === "Tài") return { diemTai: 0, diemXiu: 95, doTinCay: 95, soPP: 1, loai: 'BET' };
-    else return { diemTai: 95, diemXiu: 0, doTinCay: 95, soPP: 1, loai: 'BET' };
-  }
-  if (streak === 5) {
-    if (lichSu[0] === "Tài") return { diemTai: 0, diemXiu: 90, doTinCay: 90, soPP: 1, loai: 'BET' };
-    else return { diemTai: 90, diemXiu: 0, doTinCay: 90, soPP: 1, loai: 'BET' };
-  }
-  if (streak === 4) {
-    if (lichSu[0] === "Tài") return { diemTai: 0, diemXiu: 84, doTinCay: 84, soPP: 1, loai: 'BET' };
-    else return { diemTai: 84, diemXiu: 0, doTinCay: 84, soPP: 1, loai: 'BET' };
-  }
-  if (streak === 3) {
-    if (lichSu[0] === "Tài") return { diemTai: 0, diemXiu: 74, doTinCay: 74, soPP: 1, loai: 'BET' };
-    else return { diemTai: 74, diemXiu: 0, doTinCay: 74, soPP: 1, loai: 'BET' };
-  }
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'BET' };
+  if (streak >= 7) return { duDoan: lichSu[0] === "Tài" ? "Xỉu" : "Tài", doTinCay: 98, loai: 'BET' };
+  if (streak === 6) return { duDoan: lichSu[0] === "Tài" ? "Xỉu" : "Tài", doTinCay: 95, loai: 'BET' };
+  if (streak === 5) return { duDoan: lichSu[0] === "Tài" ? "Xỉu" : "Tài", doTinCay: 90, loai: 'BET' };
+  if (streak === 4) return { duDoan: lichSu[0] === "Tài" ? "Xỉu" : "Tài", doTinCay: 84, loai: 'BET' };
+  if (streak === 3) return { duDoan: lichSu[0] === "Tài" ? "Xỉu" : "Tài", doTinCay: 74, loai: 'BET' };
+  return { duDoan: null, doTinCay: 0, loai: 'BET' };
 }
 
 function thuatToan_TanSuat5(lichSu) {
-  if (lichSu.length < 5) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'TS5' };
+  if (lichSu.length < 5) return { duDoan: null, doTinCay: 0, loai: 'TS5' };
   const last5 = lichSu.slice(0, 5);
   const tai5 = last5.filter(r => r === "Tài").length;
-  if (tai5 >= 4) return { diemTai: 0, diemXiu: 78, doTinCay: 78, soPP: 1, loai: 'TS5' };
-  if (tai5 <= 1) return { diemTai: 78, diemXiu: 0, doTinCay: 78, soPP: 1, loai: 'TS5' };
-  if (tai5 === 3) return { diemTai: 68, diemXiu: 0, doTinCay: 68, soPP: 1, loai: 'TS5' };
-  if (tai5 === 2) return { diemTai: 0, diemXiu: 68, doTinCay: 68, soPP: 1, loai: 'TS5' };
-  return { diemTai: 60, diemXiu: 60, doTinCay: 60, soPP: 1, loai: 'TS5' };
+  if (tai5 >= 4) return { duDoan: "Xỉu", doTinCay: 78, loai: 'TS5' };
+  if (tai5 <= 1) return { duDoan: "Tài", doTinCay: 78, loai: 'TS5' };
+  if (tai5 === 3) return { duDoan: "Xỉu", doTinCay: 68, loai: 'TS5' };
+  if (tai5 === 2) return { duDoan: "Tài", doTinCay: 68, loai: 'TS5' };
+  return { duDoan: null, doTinCay: 0, loai: 'TS5' };
 }
 
 function thuatToan_TanSuat10(lichSu) {
-  if (lichSu.length < 10) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'TS10' };
+  if (lichSu.length < 10) return { duDoan: null, doTinCay: 0, loai: 'TS10' };
   const last10 = lichSu.slice(0, 10);
   const tai10 = last10.filter(r => r === "Tài").length;
-  if (tai10 >= 9) return { diemTai: 0, diemXiu: 92, doTinCay: 92, soPP: 1, loai: 'TS10' };
-  if (tai10 <= 1) return { diemTai: 92, diemXiu: 0, doTinCay: 92, soPP: 1, loai: 'TS10' };
-  if (tai10 >= 8) return { diemTai: 0, diemXiu: 88, doTinCay: 88, soPP: 1, loai: 'TS10' };
-  if (tai10 <= 2) return { diemTai: 88, diemXiu: 0, doTinCay: 88, soPP: 1, loai: 'TS10' };
-  if (tai10 >= 7) return { diemTai: 0, diemXiu: 82, doTinCay: 82, soPP: 1, loai: 'TS10' };
-  if (tai10 <= 3) return { diemTai: 82, diemXiu: 0, doTinCay: 82, soPP: 1, loai: 'TS10' };
-  if (tai10 >= 6) return { diemTai: 0, diemXiu: 74, doTinCay: 74, soPP: 1, loai: 'TS10' };
-  if (tai10 <= 4) return { diemTai: 74, diemXiu: 0, doTinCay: 74, soPP: 1, loai: 'TS10' };
-  return { diemTai: 65, diemXiu: 65, doTinCay: 65, soPP: 1, loai: 'TS10' };
+  if (tai10 >= 9) return { duDoan: "Xỉu", doTinCay: 92, loai: 'TS10' };
+  if (tai10 <= 1) return { duDoan: "Tài", doTinCay: 92, loai: 'TS10' };
+  if (tai10 >= 8) return { duDoan: "Xỉu", doTinCay: 88, loai: 'TS10' };
+  if (tai10 <= 2) return { duDoan: "Tài", doTinCay: 88, loai: 'TS10' };
+  if (tai10 >= 7) return { duDoan: "Xỉu", doTinCay: 82, loai: 'TS10' };
+  if (tai10 <= 3) return { duDoan: "Tài", doTinCay: 82, loai: 'TS10' };
+  if (tai10 >= 6) return { duDoan: "Xỉu", doTinCay: 74, loai: 'TS10' };
+  if (tai10 <= 4) return { duDoan: "Tài", doTinCay: 74, loai: 'TS10' };
+  return { duDoan: null, doTinCay: 0, loai: 'TS10' };
 }
 
 function thuatToan_TanSuat20(lichSu) {
-  if (lichSu.length < 20) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'TS20' };
+  if (lichSu.length < 20) return { duDoan: null, doTinCay: 0, loai: 'TS20' };
   const last20 = lichSu.slice(0, 20);
   const tai20 = last20.filter(r => r === "Tài").length;
-  if (tai20 >= 15) return { diemTai: 0, diemXiu: 85, doTinCay: 85, soPP: 1, loai: 'TS20' };
-  if (tai20 <= 5) return { diemTai: 85, diemXiu: 0, doTinCay: 85, soPP: 1, loai: 'TS20' };
-  if (tai20 >= 14) return { diemTai: 0, diemXiu: 80, doTinCay: 80, soPP: 1, loai: 'TS20' };
-  if (tai20 <= 6) return { diemTai: 80, diemXiu: 0, doTinCay: 80, soPP: 1, loai: 'TS20' };
-  if (tai20 >= 13) return { diemTai: 0, diemXiu: 75, doTinCay: 75, soPP: 1, loai: 'TS20' };
-  if (tai20 <= 7) return { diemTai: 75, diemXiu: 0, doTinCay: 75, soPP: 1, loai: 'TS20' };
-  return { diemTai: 65, diemXiu: 65, doTinCay: 65, soPP: 1, loai: 'TS20' };
+  if (tai20 >= 15) return { duDoan: "Xỉu", doTinCay: 85, loai: 'TS20' };
+  if (tai20 <= 5) return { duDoan: "Tài", doTinCay: 85, loai: 'TS20' };
+  if (tai20 >= 14) return { duDoan: "Xỉu", doTinCay: 80, loai: 'TS20' };
+  if (tai20 <= 6) return { duDoan: "Tài", doTinCay: 80, loai: 'TS20' };
+  if (tai20 >= 13) return { duDoan: "Xỉu", doTinCay: 75, loai: 'TS20' };
+  if (tai20 <= 7) return { duDoan: "Tài", doTinCay: 75, loai: 'TS20' };
+  return { duDoan: null, doTinCay: 0, loai: 'TS20' };
 }
 
 function thuatToan_Cau1_1(lichSu) {
-  if (lichSu.length < 5) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'C11' };
+  if (lichSu.length < 5) return { duDoan: null, doTinCay: 0, loai: 'C11' };
   let zigzag = 0;
   for (let i = 1; i < 5; i++) {
     if (lichSu[i] !== lichSu[i-1]) zigzag++;
   }
-  if (zigzag >= 4) {
-    if (lichSu[0] === "Tài") return { diemTai: 0, diemXiu: 86, doTinCay: 86, soPP: 1, loai: 'C11' };
-    else return { diemTai: 86, diemXiu: 0, doTinCay: 86, soPP: 1, loai: 'C11' };
-  }
-  if (zigzag >= 3) {
-    if (lichSu[0] === "Tài") return { diemTai: 0, diemXiu: 78, doTinCay: 78, soPP: 1, loai: 'C11' };
-    else return { diemTai: 78, diemXiu: 0, doTinCay: 78, soPP: 1, loai: 'C11' };
-  }
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'C11' };
+  if (zigzag >= 4) return { duDoan: lichSu[0] === "Tài" ? "Xỉu" : "Tài", doTinCay: 86, loai: 'C11' };
+  if (zigzag >= 3) return { duDoan: lichSu[0] === "Tài" ? "Xỉu" : "Tài", doTinCay: 78, loai: 'C11' };
+  return { duDoan: null, doTinCay: 0, loai: 'C11' };
 }
 
 function thuatToan_Cau2_1(lichSu) {
-  if (lichSu.length < 6) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'C21' };
+  if (lichSu.length < 6) return { duDoan: null, doTinCay: 0, loai: 'C21' };
   if (lichSu[0] === lichSu[1] && lichSu[3] === lichSu[4] && lichSu[0] !== lichSu[3]) {
-    if (lichSu[0] === "Tài") return { diemTai: 82, diemXiu: 0, doTinCay: 82, soPP: 1, loai: 'C21' };
-    else return { diemTai: 0, diemXiu: 82, doTinCay: 82, soPP: 1, loai: 'C21' };
+    return { duDoan: lichSu[0] === "Tài" ? "Tài" : "Xỉu", doTinCay: 82, loai: 'C21' };
   }
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'C21' };
+  return { duDoan: null, doTinCay: 0, loai: 'C21' };
 }
 
 function thuatToan_Cau3_2(lichSu) {
-  if (lichSu.length < 10) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'C32' };
+  if (lichSu.length < 10) return { duDoan: null, doTinCay: 0, loai: 'C32' };
   const p = lichSu.slice(0, 5).join('');
-  if (p === "TàiTàiTàiXỉuXỉu") return { diemTai: 0, diemXiu: 86, doTinCay: 86, soPP: 1, loai: 'C32' };
-  if (p === "XỉuXỉuXỉuTàiTài") return { diemTai: 86, diemXiu: 0, doTinCay: 86, soPP: 1, loai: 'C32' };
-  if (p === "TàiTàiXỉuXỉuTài") return { diemTai: 0, diemXiu: 78, doTinCay: 78, soPP: 1, loai: 'C32' };
-  if (p === "XỉuXỉuTàiTàiXỉu") return { diemTai: 78, diemXiu: 0, doTinCay: 78, soPP: 1, loai: 'C32' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'C32' };
+  if (p === "TàiTàiTàiXỉuXỉu") return { duDoan: "Xỉu", doTinCay: 86, loai: 'C32' };
+  if (p === "XỉuXỉuXỉuTàiTài") return { duDoan: "Tài", doTinCay: 86, loai: 'C32' };
+  if (p === "TàiTàiXỉuXỉuTài") return { duDoan: "Xỉu", doTinCay: 78, loai: 'C32' };
+  if (p === "XỉuXỉuTàiTàiXỉu") return { duDoan: "Tài", doTinCay: 78, loai: 'C32' };
+  return { duDoan: null, doTinCay: 0, loai: 'C32' };
 }
 
 function thuatToan_TongDiemTB(tongData) {
-  if (!tongData || tongData.length < 10) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'TDTB' };
+  if (!tongData || tongData.length < 10) return { duDoan: null, doTinCay: 0, loai: 'TDTB' };
   const avg = tongData.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
-  if (avg > 13) return { diemTai: 0, diemXiu: 82, doTinCay: 82, soPP: 1, loai: 'TDTB' };
-  if (avg < 8) return { diemTai: 82, diemXiu: 0, doTinCay: 82, soPP: 1, loai: 'TDTB' };
-  if (avg > 12.5) return { diemTai: 0, diemXiu: 78, doTinCay: 78, soPP: 1, loai: 'TDTB' };
-  if (avg < 8.5) return { diemTai: 78, diemXiu: 0, doTinCay: 78, soPP: 1, loai: 'TDTB' };
-  if (avg > 11.5) return { diemTai: 0, diemXiu: 72, doTinCay: 72, soPP: 1, loai: 'TDTB' };
-  if (avg < 9.5) return { diemTai: 72, diemXiu: 0, doTinCay: 72, soPP: 1, loai: 'TDTB' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'TDTB' };
+  if (avg > 13) return { duDoan: "Xỉu", doTinCay: 82, loai: 'TDTB' };
+  if (avg < 8) return { duDoan: "Tài", doTinCay: 82, loai: 'TDTB' };
+  if (avg > 12.5) return { duDoan: "Xỉu", doTinCay: 78, loai: 'TDTB' };
+  if (avg < 8.5) return { duDoan: "Tài", doTinCay: 78, loai: 'TDTB' };
+  if (avg > 11.5) return { duDoan: "Xỉu", doTinCay: 72, loai: 'TDTB' };
+  if (avg < 9.5) return { duDoan: "Tài", doTinCay: 72, loai: 'TDTB' };
+  return { duDoan: null, doTinCay: 0, loai: 'TDTB' };
 }
 
 function thuatToan_RSI(lichSu) {
-  if (lichSu.length < 14) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'RSI' };
+  if (lichSu.length < 14) return { duDoan: null, doTinCay: 0, loai: 'RSI' };
   const nums = lichSu.slice(0, 14).map(r => r === "Tài" ? 1 : 0);
   let gains = 0, losses = 0;
   for (let i = 1; i < nums.length; i++) {
@@ -355,27 +323,27 @@ function thuatToan_RSI(lichSu) {
   }
   const avgGain = gains / 14, avgLoss = losses / 14;
   const rsi = avgLoss === 0 ? 100 : 100 - (100 / (1 + avgGain / avgLoss));
-  if (rsi >= 85) return { diemTai: 0, diemXiu: 90, doTinCay: 90, soPP: 1, loai: 'RSI' };
-  if (rsi <= 15) return { diemTai: 90, diemXiu: 0, doTinCay: 90, soPP: 1, loai: 'RSI' };
-  if (rsi >= 75) return { diemTai: 0, diemXiu: 84, doTinCay: 84, soPP: 1, loai: 'RSI' };
-  if (rsi <= 25) return { diemTai: 84, diemXiu: 0, doTinCay: 84, soPP: 1, loai: 'RSI' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'RSI' };
+  if (rsi >= 85) return { duDoan: "Xỉu", doTinCay: 90, loai: 'RSI' };
+  if (rsi <= 15) return { duDoan: "Tài", doTinCay: 90, loai: 'RSI' };
+  if (rsi >= 75) return { duDoan: "Xỉu", doTinCay: 84, loai: 'RSI' };
+  if (rsi <= 25) return { duDoan: "Tài", doTinCay: 84, loai: 'RSI' };
+  return { duDoan: null, doTinCay: 0, loai: 'RSI' };
 }
 
 function thuatToan_MACD(lichSu) {
-  if (lichSu.length < 26) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'MACD' };
+  if (lichSu.length < 26) return { duDoan: null, doTinCay: 0, loai: 'MACD' };
   const nums = lichSu.map(r => r === "Tài" ? 1 : 0);
   const ema12 = nums.slice(-12).reduce((a, b) => a + b, 0) / 12;
   const ema26 = nums.slice(-26).reduce((a, b) => a + b, 0) / 26;
   const macd = ema12 - ema26;
   const signal = macd * 0.8;
-  if (macd > signal + 0.08) return { diemTai: 0, diemXiu: 78, doTinCay: 78, soPP: 1, loai: 'MACD' };
-  if (macd < signal - 0.08) return { diemTai: 78, diemXiu: 0, doTinCay: 78, soPP: 1, loai: 'MACD' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'MACD' };
+  if (macd > signal + 0.08) return { duDoan: "Xỉu", doTinCay: 78, loai: 'MACD' };
+  if (macd < signal - 0.08) return { duDoan: "Tài", doTinCay: 78, loai: 'MACD' };
+  return { duDoan: null, doTinCay: 0, loai: 'MACD' };
 }
 
 function thuatToan_Bollinger(lichSu) {
-  if (lichSu.length < 20) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'BB' };
+  if (lichSu.length < 20) return { duDoan: null, doTinCay: 0, loai: 'BB' };
   const nums = lichSu.slice(0, 20).map(r => r === "Tài" ? 1 : 0);
   const mean = nums.reduce((a, b) => a + b, 0) / 20;
   const variance = nums.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / 20;
@@ -383,44 +351,42 @@ function thuatToan_Bollinger(lichSu) {
   const upper = mean + 2 * std;
   const lower = mean - 2 * std;
   const last = nums[19];
-  if (last > upper) return { diemTai: 0, diemXiu: 80, doTinCay: 80, soPP: 1, loai: 'BB' };
-  if (last < lower) return { diemTai: 80, diemXiu: 0, doTinCay: 80, soPP: 1, loai: 'BB' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'BB' };
+  if (last > upper) return { duDoan: "Xỉu", doTinCay: 80, loai: 'BB' };
+  if (last < lower) return { duDoan: "Tài", doTinCay: 80, loai: 'BB' };
+  return { duDoan: null, doTinCay: 0, loai: 'BB' };
 }
 
 function thuatToan_Stochastic(lichSu) {
-  if (lichSu.length < 14) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'STO' };
+  if (lichSu.length < 14) return { duDoan: null, doTinCay: 0, loai: 'STO' };
   const nums = lichSu.slice(0, 14).map(r => r === "Tài" ? 1 : 0);
   const highest = Math.max(...nums), lowest = Math.min(...nums);
-  if (highest === lowest) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'STO' };
+  if (highest === lowest) return { duDoan: null, doTinCay: 0, loai: 'STO' };
   const k = (nums[13] - lowest) / (highest - lowest) * 100;
-  if (k > 90) return { diemTai: 0, diemXiu: 82, doTinCay: 82, soPP: 1, loai: 'STO' };
-  if (k < 10) return { diemTai: 82, diemXiu: 0, doTinCay: 82, soPP: 1, loai: 'STO' };
-  if (k > 80) return { diemTai: 0, diemXiu: 76, doTinCay: 76, soPP: 1, loai: 'STO' };
-  if (k < 20) return { diemTai: 76, diemXiu: 0, doTinCay: 76, soPP: 1, loai: 'STO' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'STO' };
+  if (k > 90) return { duDoan: "Xỉu", doTinCay: 82, loai: 'STO' };
+  if (k < 10) return { duDoan: "Tài", doTinCay: 82, loai: 'STO' };
+  if (k > 80) return { duDoan: "Xỉu", doTinCay: 76, loai: 'STO' };
+  if (k < 20) return { duDoan: "Tài", doTinCay: 76, loai: 'STO' };
+  return { duDoan: null, doTinCay: 0, loai: 'STO' };
 }
 
 function thuatToan_Entropy(lichSu) {
-  if (lichSu.length < 20) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'ENT' };
+  if (lichSu.length < 20) return { duDoan: null, doTinCay: 0, loai: 'ENT' };
   const tai20 = lichSu.slice(0, 20).filter(r => r === "Tài").length;
   const p = tai20 / 20;
-  if (p === 0) return { diemTai: 85, diemXiu: 0, doTinCay: 85, soPP: 1, loai: 'ENT' };
-  if (p === 1) return { diemTai: 0, diemXiu: 85, doTinCay: 85, soPP: 1, loai: 'ENT' };
+  if (p === 0) return { duDoan: "Tài", doTinCay: 85, loai: 'ENT' };
+  if (p === 1) return { duDoan: "Xỉu", doTinCay: 85, loai: 'ENT' };
   const entropy = -p * Math.log2(p) - (1-p) * Math.log2(1-p);
   if (entropy < 0.5) {
-    if (p > 0.5) return { diemTai: 82, diemXiu: 0, doTinCay: 82, soPP: 1, loai: 'ENT' };
-    else return { diemTai: 0, diemXiu: 82, doTinCay: 82, soPP: 1, loai: 'ENT' };
+    return { duDoan: p > 0.5 ? "Tài" : "Xỉu", doTinCay: 82, loai: 'ENT' };
   }
   if (entropy > 0.95) {
-    if (p > 0.5) return { diemTai: 0, diemXiu: 78, doTinCay: 78, soPP: 1, loai: 'ENT' };
-    else return { diemTai: 78, diemXiu: 0, doTinCay: 78, soPP: 1, loai: 'ENT' };
+    return { duDoan: p > 0.5 ? "Xỉu" : "Tài", doTinCay: 78, loai: 'ENT' };
   }
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'ENT' };
+  return { duDoan: null, doTinCay: 0, loai: 'ENT' };
 }
 
 function thuatToan_KNN(lichSu) {
-  if (lichSu.length < 25) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'KNN' };
+  if (lichSu.length < 25) return { duDoan: null, doTinCay: 0, loai: 'KNN' };
   const k = 7, lookback = 7;
   const query = lichSu.slice(0, lookback);
   const distances = [];
@@ -434,93 +400,93 @@ function thuatToan_KNN(lichSu) {
   distances.sort((a, b) => a.diff - b.diff);
   const neighbors = distances.slice(0, k);
   const taiCount = neighbors.filter(n => n.next === "Tài").length;
-  if (taiCount >= 6) return { diemTai: 80, diemXiu: 0, doTinCay: 80, soPP: 1, loai: 'KNN' };
-  if (taiCount <= 1) return { diemTai: 0, diemXiu: 80, doTinCay: 80, soPP: 1, loai: 'KNN' };
-  if (taiCount >= 5) return { diemTai: 74, diemXiu: 0, doTinCay: 74, soPP: 1, loai: 'KNN' };
-  if (taiCount <= 2) return { diemTai: 0, diemXiu: 74, doTinCay: 74, soPP: 1, loai: 'KNN' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'KNN' };
+  if (taiCount >= 6) return { duDoan: "Tài", doTinCay: 80, loai: 'KNN' };
+  if (taiCount <= 1) return { duDoan: "Xỉu", doTinCay: 80, loai: 'KNN' };
+  if (taiCount >= 5) return { duDoan: "Tài", doTinCay: 74, loai: 'KNN' };
+  if (taiCount <= 2) return { duDoan: "Xỉu", doTinCay: 74, loai: 'KNN' };
+  return { duDoan: null, doTinCay: 0, loai: 'KNN' };
 }
 
 function thuatToan_DecisionTree(lichSu) {
-  if (lichSu.length < 10) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'DT' };
+  if (lichSu.length < 10) return { duDoan: null, doTinCay: 0, loai: 'DT' };
   const last1 = lichSu[0], last2 = lichSu[1], last3 = lichSu[2];
   const t5 = lichSu.slice(0, 5).filter(r => r === "Tài").length;
-  if (last1 === "Tài" && last2 === "Tài" && last3 === "Tài") return { diemTai: 0, diemXiu: 85, doTinCay: 85, soPP: 1, loai: 'DT' };
-  if (last1 === "Xỉu" && last2 === "Xỉu" && last3 === "Xỉu") return { diemTai: 85, diemXiu: 0, doTinCay: 85, soPP: 1, loai: 'DT' };
-  if (t5 >= 4) return { diemTai: 0, diemXiu: 76, doTinCay: 76, soPP: 1, loai: 'DT' };
-  if (t5 <= 1) return { diemTai: 76, diemXiu: 0, doTinCay: 76, soPP: 1, loai: 'DT' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'DT' };
+  if (last1 === "Tài" && last2 === "Tài" && last3 === "Tài") return { duDoan: "Xỉu", doTinCay: 85, loai: 'DT' };
+  if (last1 === "Xỉu" && last2 === "Xỉu" && last3 === "Xỉu") return { duDoan: "Tài", doTinCay: 85, loai: 'DT' };
+  if (t5 >= 4) return { duDoan: "Xỉu", doTinCay: 76, loai: 'DT' };
+  if (t5 <= 1) return { duDoan: "Tài", doTinCay: 76, loai: 'DT' };
+  return { duDoan: null, doTinCay: 0, loai: 'DT' };
 }
 
 function thuatToan_Momentum(lichSu) {
-  if (lichSu.length < 15) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'MOM' };
+  if (lichSu.length < 15) return { duDoan: null, doTinCay: 0, loai: 'MOM' };
   const last5 = lichSu.slice(0, 5).filter(r => r === "Tài").length;
   const prev5 = lichSu.slice(5, 10).filter(r => r === "Tài").length;
   const diff = last5 - prev5;
-  if (diff >= 4) return { diemTai: 0, diemXiu: 80, doTinCay: 80, soPP: 1, loai: 'MOM' };
-  if (diff <= -4) return { diemTai: 80, diemXiu: 0, doTinCay: 80, soPP: 1, loai: 'MOM' };
-  if (diff >= 2) return { diemTai: 0, diemXiu: 72, doTinCay: 72, soPP: 1, loai: 'MOM' };
-  if (diff <= -2) return { diemTai: 72, diemXiu: 0, doTinCay: 72, soPP: 1, loai: 'MOM' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'MOM' };
+  if (diff >= 4) return { duDoan: "Xỉu", doTinCay: 80, loai: 'MOM' };
+  if (diff <= -4) return { duDoan: "Tài", doTinCay: 80, loai: 'MOM' };
+  if (diff >= 2) return { duDoan: "Xỉu", doTinCay: 72, loai: 'MOM' };
+  if (diff <= -2) return { duDoan: "Tài", doTinCay: 72, loai: 'MOM' };
+  return { duDoan: null, doTinCay: 0, loai: 'MOM' };
 }
 
 function thuatToan_XuHuongTong(tongData) {
-  if (!tongData || tongData.length < 20) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'XHT' };
+  if (!tongData || tongData.length < 20) return { duDoan: null, doTinCay: 0, loai: 'XHT' };
   const gan = tongData.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
   const truoc = tongData.slice(10, 20).reduce((a, b) => a + b, 0) / 10;
   const delta = gan - truoc;
-  if (delta > 2.5) return { diemTai: 0, diemXiu: 78, doTinCay: 78, soPP: 1, loai: 'XHT' };
-  if (delta < -2.5) return { diemTai: 78, diemXiu: 0, doTinCay: 78, soPP: 1, loai: 'XHT' };
-  if (delta > 1.5) return { diemTai: 0, diemXiu: 70, doTinCay: 70, soPP: 1, loai: 'XHT' };
-  if (delta < -1.5) return { diemTai: 70, diemXiu: 0, doTinCay: 70, soPP: 1, loai: 'XHT' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'XHT' };
+  if (delta > 2.5) return { duDoan: "Xỉu", doTinCay: 78, loai: 'XHT' };
+  if (delta < -2.5) return { duDoan: "Tài", doTinCay: 78, loai: 'XHT' };
+  if (delta > 1.5) return { duDoan: "Xỉu", doTinCay: 70, loai: 'XHT' };
+  if (delta < -1.5) return { duDoan: "Tài", doTinCay: 70, loai: 'XHT' };
+  return { duDoan: null, doTinCay: 0, loai: 'XHT' };
 }
 
 function thuatToan_BienDoTong(tongData) {
-  if (!tongData || tongData.length < 15) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'BDT' };
+  if (!tongData || tongData.length < 15) return { duDoan: null, doTinCay: 0, loai: 'BDT' };
   const max = Math.max(...tongData.slice(0, 15));
   const min = Math.min(...tongData.slice(0, 15));
   const bienDo = max - min;
   if (bienDo >= 12) {
-    if (max > 14) return { diemTai: 0, diemXiu: 80, doTinCay: 80, soPP: 1, loai: 'BDT' };
-    else return { diemTai: 80, diemXiu: 0, doTinCay: 80, soPP: 1, loai: 'BDT' };
+    if (max > 14) return { duDoan: "Xỉu", doTinCay: 80, loai: 'BDT' };
+    else return { duDoan: "Tài", doTinCay: 80, loai: 'BDT' };
   }
   if (bienDo >= 9) {
-    if (max > 13) return { diemTai: 0, diemXiu: 74, doTinCay: 74, soPP: 1, loai: 'BDT' };
-    else return { diemTai: 74, diemXiu: 0, doTinCay: 74, soPP: 1, loai: 'BDT' };
+    if (max > 13) return { duDoan: "Xỉu", doTinCay: 74, loai: 'BDT' };
+    else return { duDoan: "Tài", doTinCay: 74, loai: 'BDT' };
   }
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'BDT' };
+  return { duDoan: null, doTinCay: 0, loai: 'BDT' };
 }
 
 function thuatToan_WilliamsR(lichSu) {
-  if (lichSu.length < 14) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'WR' };
+  if (lichSu.length < 14) return { duDoan: null, doTinCay: 0, loai: 'WR' };
   const nums = lichSu.slice(0, 14).map(r => r === "Tài" ? 1 : 0);
   const highest = Math.max(...nums), lowest = Math.min(...nums);
-  if (highest === lowest) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'WR' };
+  if (highest === lowest) return { duDoan: null, doTinCay: 0, loai: 'WR' };
   const wr = (highest - nums[13]) / (highest - lowest) * -100;
-  if (wr < -90) return { diemTai: 80, diemXiu: 0, doTinCay: 80, soPP: 1, loai: 'WR' };
-  if (wr > -10) return { diemTai: 0, diemXiu: 80, doTinCay: 80, soPP: 1, loai: 'WR' };
-  if (wr < -80) return { diemTai: 74, diemXiu: 0, doTinCay: 74, soPP: 1, loai: 'WR' };
-  if (wr > -20) return { diemTai: 0, diemXiu: 74, doTinCay: 74, soPP: 1, loai: 'WR' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'WR' };
+  if (wr < -90) return { duDoan: "Tài", doTinCay: 80, loai: 'WR' };
+  if (wr > -10) return { duDoan: "Xỉu", doTinCay: 80, loai: 'WR' };
+  if (wr < -80) return { duDoan: "Tài", doTinCay: 74, loai: 'WR' };
+  if (wr > -20) return { duDoan: "Xỉu", doTinCay: 74, loai: 'WR' };
+  return { duDoan: null, doTinCay: 0, loai: 'WR' };
 }
 
 function thuatToan_CCI(lichSu) {
-  if (lichSu.length < 14) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'CCI' };
+  if (lichSu.length < 14) return { duDoan: null, doTinCay: 0, loai: 'CCI' };
   const nums = lichSu.slice(0, 14).map(r => r === "Tài" ? 1 : 0);
   const mean = nums.reduce((a, b) => a + b, 0) / 14;
   const mad = nums.reduce((sum, x) => sum + Math.abs(x - mean), 0) / 14;
-  if (mad === 0) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'CCI' };
+  if (mad === 0) return { duDoan: null, doTinCay: 0, loai: 'CCI' };
   const cci = (nums[13] - mean) / (0.015 * mad);
-  if (cci > 150) return { diemTai: 0, diemXiu: 80, doTinCay: 80, soPP: 1, loai: 'CCI' };
-  if (cci < -150) return { diemTai: 80, diemXiu: 0, doTinCay: 80, soPP: 1, loai: 'CCI' };
-  if (cci > 100) return { diemTai: 0, diemXiu: 74, doTinCay: 74, soPP: 1, loai: 'CCI' };
-  if (cci < -100) return { diemTai: 74, diemXiu: 0, doTinCay: 74, soPP: 1, loai: 'CCI' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'CCI' };
+  if (cci > 150) return { duDoan: "Xỉu", doTinCay: 80, loai: 'CCI' };
+  if (cci < -150) return { duDoan: "Tài", doTinCay: 80, loai: 'CCI' };
+  if (cci > 100) return { duDoan: "Xỉu", doTinCay: 74, loai: 'CCI' };
+  if (cci < -100) return { duDoan: "Tài", doTinCay: 74, loai: 'CCI' };
+  return { duDoan: null, doTinCay: 0, loai: 'CCI' };
 }
 
 function thuatToan_LinearReg(lichSu) {
-  if (lichSu.length < 12) return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'LR' };
+  if (lichSu.length < 12) return { duDoan: null, doTinCay: 0, loai: 'LR' };
   const y = lichSu.slice(0, 12).map(r => r === "Tài" ? 1 : 0);
   const x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   const n = 12;
@@ -531,204 +497,302 @@ function thuatToan_LinearReg(lichSu) {
   const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
   const intercept = (sumY - slope * sumX) / n;
   const pred = slope * 12 + intercept;
-  if (pred > 0.65) return { diemTai: 78, diemXiu: 0, doTinCay: 78, soPP: 1, loai: 'LR' };
-  if (pred < 0.35) return { diemTai: 0, diemXiu: 78, doTinCay: 78, soPP: 1, loai: 'LR' };
-  return { diemTai: 0, diemXiu: 0, doTinCay: 0, soPP: 0, loai: 'LR' };
+  if (pred > 0.65) return { duDoan: "Tài", doTinCay: 78, loai: 'LR' };
+  if (pred < 0.35) return { duDoan: "Xỉu", doTinCay: 78, loai: 'LR' };
+  return { duDoan: null, doTinCay: 0, loai: 'LR' };
+}
+
+// Danh sách tất cả thuật toán
+const THUAT_TOANS = [
+  thuatToan_Bet, thuatToan_TanSuat5, thuatToan_TanSuat10, thuatToan_TanSuat20,
+  thuatToan_Cau1_1, thuatToan_Cau2_1, thuatToan_Cau3_2, thuatToan_TongDiemTB,
+  thuatToan_RSI, thuatToan_MACD, thuatToan_Bollinger, thuatToan_Stochastic,
+  thuatToan_Entropy, thuatToan_KNN, thuatToan_DecisionTree, thuatToan_Momentum,
+  thuatToan_XuHuongTong, thuatToan_BienDoTong, thuatToan_WilliamsR, thuatToan_CCI,
+  thuatToan_LinearReg
+];
+
+// ==========================================
+// ========== META AI TỐI ƯU (KHÔNG RANDOM) ==========
+// ==========================================
+
+function metaAIPrediction(lichSu, tongData, gameKey) {
+  if (!lichSu || lichSu.length < 3) return { duDoan: null, doTinCay: 0, metaData: [], ketLuan: "Chưa đủ dữ liệu" };
+  
+  const trongSoMeta = metaDB[gameKey].trong_so || 0.65;
+  let diemTai = 0;
+  let diemXiu = 0;
+  let tongDoTinCay = 0;
+  const tatCaDuDoan = [];
+  const metaData = [];
+  
+  // Chạy tất cả thuật toán và tổng hợp
+  for (const thuatToan of THUAT_TOANS) {
+    let result;
+    if (thuatToan.name.includes('Tong') || thuatToan.name.includes('XHT') || thuatToan.name.includes('BDT')) {
+      result = thuatToan(tongData);
+    } else {
+      result = thuatToan(lichSu);
+    }
+    
+    if (result.duDoan && result.doTinCay > 50) {
+      tatCaDuDoan.push(result);
+      
+      // Điều chỉnh trọng số dựa trên học máy
+      const trongSoHoc = learningDB[gameKey].trong_so_thuat_toan[result.loai] || 1.0;
+      const diemCong = result.doTinCay * trongSoHoc;
+      
+      if (result.duDoan === "Tài") {
+        diemTai += diemCong;
+      } else {
+        diemXiu += diemCong;
+      }
+      tongDoTinCay += result.doTinCay;
+      
+      metaData.push({
+        thuat_toan: result.loai,
+        du_doan: result.duDoan,
+        do_tin_cay: result.doTinCay,
+        trong_so_dieu_chinh: trongSoHoc
+      });
+    }
+  }
+  
+  // Xác định dự đoán cuối cùng (KHÔNG RANDOM)
+  let duDoanCuoi = null;
+  let doTinCayCuoi = 0;
+  
+  if (diemTai > 0 || diemXiu > 0) {
+    const chenhLech = Math.abs(diemTai - diemXiu);
+    const tongDiem = diemTai + diemXiu;
+    
+    if (tongDiem > 0) {
+      if (diemTai > diemXiu && (chenhLech / tongDiem) > 0.15) {
+        duDoanCuoi = "Tài";
+        doTinCayCuoi = Math.min(99, (diemTai / tongDiem) * 100);
+      } else if (diemXiu > diemTai && (chenhLech / tongDiem) > 0.15) {
+        duDoanCuoi = "Xỉu";
+        doTinCayCuoi = Math.min(99, (diemXiu / tongDiem) * 100);
+      }
+    }
+  }
+  
+  // Meta phân tích chéo (tăng độ chính xác)
+  if (duDoanCuoi && lichSu.length >= 10) {
+    // Kiểm tra xu hướng đảo chiều
+    const last3 = lichSu.slice(0, 3);
+    const allSame = last3[0] === last3[1] && last3[1] === last3[2];
+    const isReverse = duDoanCuoi !== last3[0];
+    
+    if (allSame && isReverse) {
+      // Đang bệt, dự đoán đảo - tăng độ tin cậy nếu bệt dài
+      let betLength = 3;
+      for (let i = 3; i < lichSu.length; i++) {
+        if (lichSu[i] === last3[0]) betLength++;
+        else break;
+      }
+      if (betLength >= 5) {
+        doTinCayCuoi = Math.min(99, doTinCayCuoi + 8);
+        metaData.push({ thuat_toan: "META_REVERSE", ket_luan: "Bệt dài, đảo chiều hợp lý" });
+      }
+    }
+    
+    // Kiểm tra tần suất 10 phiên
+    const tai10 = lichSu.slice(0, 10).filter(r => r === "Tài").length;
+    if ((duDoanCuoi === "Tài" && tai10 <= 2) || (duDoanCuoi === "Xỉu" && tai10 >= 8)) {
+      doTinCayCuoi = Math.min(99, doTinCayCuoi + 5);
+      metaData.push({ thuat_toan: "META_FREQ", ket_luan: "Hỗ trợ từ tần suất" });
+    } else if ((duDoanCuoi === "Tài" && tai10 >= 8) || (duDoanCuoi === "Xỉu" && tai10 <= 2)) {
+      doTinCayCuoi = Math.max(50, doTinCayCuoi - 10);
+      metaData.push({ thuat_toan: "META_FREQ", ket_luan: "Cảnh báo ngược tần suất" });
+    }
+  }
+  
+  // Áp dụng độ chính xác lịch sử của meta
+  const metaAccuracy = metaDB[gameKey].do_chinh_xac_meta;
+  if (metaAccuracy > 70 && doTinCayCuoi > 0) {
+    doTinCayCuoi = Math.min(99, doTinCayCuoi * (metaAccuracy / 70));
+  } else if (metaAccuracy < 50 && metaAccuracy > 0) {
+    doTinCayCuoi = doTinCayCuoi * 0.9;
+  }
+  
+  // Cập nhật meta DB
+  if (duDoanCuoi && doTinCayCuoi > 55) {
+    metaDB[gameKey].so_lan_phat_hien_cau++;
+    metaDB[gameKey].ty_le_cau_dung = (metaDB[gameKey].ty_le_cau_dung * (metaDB[gameKey].so_lan_phat_hien_cau - 1) + doTinCayCuoi) / metaDB[gameKey].so_lan_phat_hien_cau;
+  }
+  
+  const ketLuan = duDoanCuoi ? 
+    `Meta AI dự đoán ${duDoanCuoi} với độ tin cậy ${doTinCayCuoi.toFixed(1)}%` : 
+    "Meta AI chưa đủ cơ sở để đưa ra dự đoán tin cậy";
+  
+  return { 
+    duDoan: duDoanCuoi, 
+    doTinCay: Math.round(doTinCayCuoi), 
+    metaData, 
+    ketLuan,
+    diemTai: Math.round(diemTai),
+    diemXiu: Math.round(diemXiu)
+  };
 }
 
 // ==========================================
-// ========== AI META SIÊU MẠNH (20 PHƯƠNG PHÁP KIỂM TRA) ==========
+// API ENDPOINTS
 // ==========================================
 
-function metaPhanTichLai(lichSu, tongData, duDoanGoc, doTinCayGoc, gameKey) {
-  let diemXacNhan = 0;
-  let diemPhanBac = 0;
-  let chiTietMeta = [];
-  const trongSoMeta = metaDB[gameKey].trong_so || 0.65;
-  
-  // 1. KIỂM TRA BẰNG TẦN SUẤT 10 PHIÊN (trọng số 1.5)
-  if (lichSu.length >= 10) {
-    const last10 = lichSu.slice(0, 10);
-    const tai10 = last10.filter(r => r === "Tài").length;
-    if ((duDoanGoc === "Tài" && tai10 >= 7) || (duDoanGoc === "Xỉu" && tai10 <= 3)) {
-      diemXacNhan += 25 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "Tần suất 10 phiên", ket_luan: "✅ XÁC NHẬN", diem: 25 });
-    } else if ((duDoanGoc === "Xỉu" && tai10 >= 7) || (duDoanGoc === "Tài" && tai10 <= 3)) {
-      diemPhanBac += 30 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "Tần suất 10 phiên", ket_luan: "❌ PHẢN BÁC", diem: -30 });
-    } else {
-      chiTietMeta.push({ phuong_phap: "Tần suất 10 phiên", ket_luan: "⚖️ TRUNG LẬP", diem: 0 });
-    }
+// Lấy danh sách game
+app.get('/api/games', (req, res) => {
+  res.json({ games: Object.keys(GAME_APIS), total: Object.keys(GAME_APIS).length });
+});
+
+// Lấy dự đoán cho một game
+app.get('/api/predict/:game', async (req, res) => {
+  const gameKey = req.params.game;
+  if (!GAME_APIS[gameKey]) {
+    return res.status(404).json({ error: 'Game not found' });
   }
   
-  // 2. KIỂM TRA CHUỖI BỆT (trọng số 1.8)
-  if (lichSu.length >= 3) {
-    let bet = 1;
-    for (let i = 1; i < lichSu.length; i++) {
-      if (lichSu[i] === lichSu[0]) bet++;
-      else break;
+  try {
+    // Fetch dữ liệu mới
+    const newData = await fetchGameData(GAME_APIS[gameKey], gameKey);
+    if (!newData) {
+      return res.status(503).json({ error: 'Cannot fetch game data' });
     }
-    if (bet >= 4) {
-      const duDoanBet = lichSu[0] === "Tài" ? "Xỉu" : "Tài";
-      if (duDoanGoc === duDoanBet) {
-        diemXacNhan += 22 * trongSoMeta;
-        chiTietMeta.push({ phuong_phap: "Cầu bệt", ket_luan: "✅ XÁC NHẬN", diem: 22 });
-      } else {
-        diemPhanBac += 28 * trongSoMeta;
-        chiTietMeta.push({ phuong_phap: "Cầu bệt", ket_luan: "❌ PHẢN BÁC", diem: -28 });
+    
+    // Cập nhật lịch sử
+    if (!gameData[gameKey].data.length || gameData[gameKey].data[0].phien !== newData.phien) {
+      gameData[gameKey].data.unshift(newData);
+      if (newData.ket_qua === 'Tài' || newData.ket_qua === 'Xỉu') {
+        gameData[gameKey].lichSuDuDoan.unshift({ ket_qua: 'CHỜ', thuc_te: newData.ket_qua, thoi_gian: Date.now() });
+      }
+      if (newData.tong) gameData[gameKey].tongData.unshift(newData.tong);
+      if (newData.dice && newData.dice.length) gameData[gameKey].diceData.unshift(newData.dice);
+      
+      // Giới hạn dung lượng
+      if (gameData[gameKey].data.length > 100) gameData[gameKey].data.pop();
+      if (gameData[gameKey].tongData.length > 100) gameData[gameKey].tongData.pop();
+      if (gameData[gameKey].diceData.length > 100) gameData[gameKey].diceData.pop();
+      if (gameData[gameKey].lichSuDuDoan.length > 100) gameData[gameKey].lichSuDuDoan.pop();
+    }
+    
+    // Lấy lịch sử kết quả
+    const lichSu = gameData[gameKey].data.map(d => d.ket_qua).filter(k => k === 'Tài' || k === 'Xỉu');
+    const tongData = gameData[gameKey].tongData;
+    
+    // Meta AI dự đoán (KHÔNG RANDOM)
+    const metaResult = metaAIPrediction(lichSu, tongData, gameKey);
+    
+    // Cập nhật kết quả trước đó nếu có
+    if (gameData[gameKey].lichSuDuDoan.length > 0 && gameData[gameKey].lichSuDuDoan[0].ket_qua === 'CHỜ') {
+      const lastResult = gameData[gameKey].data[0].ket_qua;
+      if (lastResult === 'Tài' || lastResult === 'Xỉu') {
+        const lastPrediction = gameData[gameKey].lichSuDuDoan[0];
+        const dung = updateStats(gameKey, lastResult, lastPrediction.du_doan, lastPrediction.do_tin_cay, lastPrediction.loai_cau);
+        lastPrediction.ket_qua = dung ? 'ĐÚNG' : 'SAI';
+        lastPrediction.thuc_te = lastResult;
       }
     }
+    
+    // Lưu dự đoán mới
+    const newPrediction = {
+      ket_qua: 'CHỜ',
+      du_doan: metaResult.duDoan,
+      do_tin_cay: metaResult.do_tin_cay,
+      loai_cau: metaResult.metaData.length > 0 ? metaResult.metaData[0].thuat_toan : 'META',
+      thoi_gian: Date.now()
+    };
+    gameData[gameKey].lichSuDuDoan.unshift(newPrediction);
+    
+    // Cập nhật stats meta
+    statsDB[gameKey].meta_do_tin_cay = metaResult.do_tin_cay;
+    statsDB[gameKey].meta_accuracy = metaDB[gameKey].do_chinh_xac_meta;
+    
+    // Trả về kết quả
+    res.json({
+      game: gameKey,
+      api: GAME_APIS[gameKey],
+      current_result: gameData[gameKey].data[0],
+      prediction: {
+        du_doan: metaResult.duDoan,
+        do_tin_cay: metaResult.do_tin_cay + '%',
+        do_chinh_xac_meta: metaDB[gameKey].do_chinh_xac_meta.toFixed(1) + '%',
+        ket_luan: metaResult.ketLuan,
+        diem_tai: metaResult.diemTai,
+        diem_xiu: metaResult.diemXiu,
+        meta_chi_tiet: metaResult.metaData.slice(0, 10)
+      },
+      stats: statsDB[gameKey],
+      lich_su_gan_day: gameData[gameKey].data.slice(0, 10).map(d => d.ket_qua),
+      lich_su_du_doan: gameData[gameKey].lichSuDuDoan.slice(0, 10)
+    });
+    
+  } catch (err) {
+    console.error(`Error predicting ${gameKey}:`, err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Lấy thống kê chi tiết
+app.get('/api/stats/:game', (req, res) => {
+  const gameKey = req.params.game;
+  if (!GAME_APIS[gameKey]) {
+    return res.status(404).json({ error: 'Game not found' });
   }
   
-  // 3. KIỂM TRA CẦU 1-1 (trọng số 1.6)
-  if (lichSu.length >= 5) {
-    let zigzag = 0;
-    for (let i = 1; i < 5; i++) {
-      if (lichSu[i] !== lichSu[i-1]) zigzag++;
-    }
-    if (zigzag >= 3) {
-      const duDoanCau = lichSu[0] === "Tài" ? "Xỉu" : "Tài";
-      if (duDoanGoc === duDoanCau) {
-        diemXacNhan += 20 * trongSoMeta;
-        chiTietMeta.push({ phuong_phap: "Cầu 1-1", ket_luan: "✅ XÁC NHẬN", diem: 20 });
-      } else {
-        diemPhanBac += 25 * trongSoMeta;
-        chiTietMeta.push({ phuong_phap: "Cầu 1-1", ket_luan: "❌ PHẢN BÁC", diem: -25 });
-      }
-    }
+  res.json({
+    game: gameKey,
+    stats: statsDB[gameKey],
+    meta: metaDB[gameKey],
+    learning: learningDB[gameKey],
+    cau_hoc: cauHocDB[gameKey],
+    tong_phien: gameData[gameKey].data.length,
+    du_lieu_moi_nhat: gameData[gameKey].data[0]
+  });
+});
+
+// Reset dữ liệu một game
+app.post('/api/reset/:game', (req, res) => {
+  const gameKey = req.params.game;
+  if (!GAME_APIS[gameKey]) {
+    return res.status(404).json({ error: 'Game not found' });
   }
   
-  // 4. KIỂM TRA TỔNG ĐIỂM TRUNG BÌNH (trọng số 1.4)
-  if (tongData && tongData.length >= 10) {
-    const avg = tongData.slice(0, 10).reduce((a, b) => a + b, 0) / 10;
-    if ((duDoanGoc === "Tài" && avg < 9.5) || (duDoanGoc === "Xỉu" && avg > 11.5)) {
-      diemXacNhan += 18 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "Tổng điểm TB", ket_luan: "✅ XÁC NHẬN", diem: 18 });
-    } else if ((duDoanGoc === "Tài" && avg > 11.5) || (duDoanGoc === "Xỉu" && avg < 9.5)) {
-      diemPhanBac += 20 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "Tổng điểm TB", ket_luan: "❌ PHẢN BÁC", diem: -20 });
-    } else {
-      chiTietMeta.push({ phuong_phap: "Tổng điểm TB", ket_luan: "⚖️ TRUNG LẬP", diem: 0 });
-    }
-  }
+  gameData[gameKey] = { data: [], tongData: [], diceData: [], lichSuDuDoan: [] };
+  cacheDB[gameKey] = new Map();
+  statsDB[gameKey] = { tong: 0, dung: 0, sai: 0, tiLe: '0%', tiLe10: '0%', tiLe30: '0%', meta_do_tin_cay: 0, meta_accuracy: 0 };
+  cauHocDB[gameKey] = {
+    cau_bet: { so_lan: 0, do_dai_tb: 0, ty_le_dung: 0, do_tin_cay: 0, lan_cuoi: 0 },
+    cau_1_1: { so_lan: 0, ty_le_dung: 0, do_tin_cay: 0, lan_cuoi: 0 },
+    cau_2_1: { so_lan: 0, ty_le_dung: 0, do_tin_cay: 0, lan_cuoi: 0 },
+    cau_3_2: { so_lan: 0, ty_le_dung: 0, do_tin_cay: 0, lan_cuoi: 0 },
+    cau_doi_xung: { so_lan: 0, ty_le_dung: 0, do_tin_cay: 0, lan_cuoi: 0 },
+    pattern_lap: { so_lan: 0, ty_le_dung: 0, do_tin_cay: 0, lan_cuoi: 0 },
+    cau_dang_chay: null,
+    tong_cao: { so_lan: 0, ty_le_dung: 0 },
+    tong_thap: { so_lan: 0, ty_le_dung: 0 }
+  };
   
-  // 5. KIỂM TRA RSI (trọng số 1.5)
-  if (lichSu.length >= 14) {
-    const nums = lichSu.slice(0, 14).map(r => r === "Tài" ? 1 : 0);
-    let gains = 0, losses = 0;
-    for (let i = 1; i < nums.length; i++) {
-      const diff = nums[i] - nums[i-1];
-      if (diff > 0) gains += diff;
-      else losses -= diff;
-    }
-    const rsi = losses === 0 ? 100 : 100 - (100 / (1 + gains / losses));
-    if ((duDoanGoc === "Tài" && rsi <= 30) || (duDoanGoc === "Xỉu" && rsi >= 70)) {
-      diemXacNhan += 20 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "RSI", ket_luan: "✅ XÁC NHẬN", diem: 20 });
-    } else if ((duDoanGoc === "Tài" && rsi >= 70) || (duDoanGoc === "Xỉu" && rsi <= 30)) {
-      diemPhanBac += 22 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "RSI", ket_luan: "❌ PHẢN BÁC", diem: -22 });
-    }
-  }
+  res.json({ success: true, message: `Reset ${gameKey} thành công` });
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  const totalGames = Object.keys(GAME_APIS).length;
+  const activeGames = Object.keys(gameData).filter(g => gameData[g].data.length > 0).length;
   
-  // 6. KIỂM TRA MACD (trọng số 1.3)
-  if (lichSu.length >= 26) {
-    const nums = lichSu.map(r => r === "Tài" ? 1 : 0);
-    const ema12 = nums.slice(-12).reduce((a, b) => a + b, 0) / 12;
-    const ema26 = nums.slice(-26).reduce((a, b) => a + b, 0) / 26;
-    const macd = ema12 - ema26;
-    if ((duDoanGoc === "Tài" && macd < -0.08) || (duDoanGoc === "Xỉu" && macd > 0.08)) {
-      diemXacNhan += 16 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "MACD", ket_luan: "✅ XÁC NHẬN", diem: 16 });
-    } else if ((duDoanGoc === "Tài" && macd > 0.08) || (duDoanGoc === "Xỉu" && macd < -0.08)) {
-      diemPhanBac += 18 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "MACD", ket_luan: "❌ PHẢN BÁC", diem: -18 });
-    }
-  }
-  
-  // 7. KIỂM TRA BOLLINGER BANDS (trọng số 1.4)
-  if (lichSu.length >= 20) {
-    const nums = lichSu.slice(0, 20).map(r => r === "Tài" ? 1 : 0);
-    const mean = nums.reduce((a, b) => a + b, 0) / 20;
-    const variance = nums.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / 20;
-    const std = Math.sqrt(variance);
-    const last = nums[19];
-    if ((duDoanGoc === "Tài" && last < mean - 2 * std) || (duDoanGoc === "Xỉu" && last > mean + 2 * std)) {
-      diemXacNhan += 18 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "Bollinger", ket_luan: "✅ XÁC NHẬN", diem: 18 });
-    } else if ((duDoanGoc === "Tài" && last > mean + 2 * std) || (duDoanGoc === "Xỉu" && last < mean - 2 * std)) {
-      diemPhanBac += 18 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "Bollinger", ket_luan: "❌ PHẢN BÁC", diem: -18 });
-    }
-  }
-  
-  // 8. KIỂM TRA STOCHASTIC (trọng số 1.3)
-  if (lichSu.length >= 14) {
-    const nums = lichSu.slice(0, 14).map(r => r === "Tài" ? 1 : 0);
-    const highest = Math.max(...nums), lowest = Math.min(...nums);
-    if (highest !== lowest) {
-      const k = (nums[13] - lowest) / (highest - lowest) * 100;
-      if ((duDoanGoc === "Tài" && k < 20) || (duDoanGoc === "Xỉu" && k > 80)) {
-        diemXacNhan += 16 * trongSoMeta;
-        chiTietMeta.push({ phuong_phap: "Stochastic", ket_luan: "✅ XÁC NHẬN", diem: 16 });
-      } else if ((duDoanGoc === "Tài" && k > 80) || (duDoanGoc === "Xỉu" && k < 20)) {
-        diemPhanBac += 16 * trongSoMeta;
-        chiTietMeta.push({ phuong_phap: "Stochastic", ket_luan: "❌ PHẢN BÁC", diem: -16 });
-      }
-    }
-  }
-  
-  // 9. KIỂM TRA ENTROPY (trọng số 1.2)
-  if (lichSu.length >= 20) {
-    const tai20 = lichSu.slice(0, 20).filter(r => r === "Tài").length;
-    const p = tai20 / 20;
-    const entropy = -p * Math.log2(p) - (1-p) * Math.log2(1-p);
-    if (entropy > 0.9) {
-      const duDoanEntropy = p > 0.5 ? "Xỉu" : "Tài";
-      if (duDoanGoc === duDoanEntropy) {
-        diemXacNhan += 14 * trongSoMeta;
-        chiTietMeta.push({ phuong_phap: "Entropy", ket_luan: "✅ XÁC NHẬN", diem: 14 });
-      } else {
-        diemPhanBac += 14 * trongSoMeta;
-        chiTietMeta.push({ phuong_phap: "Entropy", ket_luan: "❌ PHẢN BÁC", diem: -14 });
-      }
-    }
-  }
-  
-  // 10. KIỂM TRA BẰNG KNN (trọng số 1.5)
-  if (lichSu.length >= 25) {
-    const k = 5, lookback = 8;
-    const query = lichSu.slice(0, lookback);
-    const distances = [];
-    for (let i = lookback; i < lichSu.length - 1; i++) {
-      let diff = 0;
-      for (let j = 0; j < lookback; j++) {
-        if (lichSu[i - lookback + j] !== query[j]) diff++;
-      }
-      distances.push({ diff, next: lichSu[i] });
-    }
-    distances.sort((a, b) => a.diff - b.diff);
-    const neighbors = distances.slice(0, k);
-    const taiCount = neighbors.filter(n => n.next === "Tài").length;
-    const duDoanKNN = taiCount >= 3 ? "Tài" : "Xỉu";
-    if (duDoanGoc === duDoanKNN) {
-      diemXacNhan += 18 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "KNN Pattern", ket_luan: "✅ XÁC NHẬN", diem: 18 });
-    } else {
-      diemPhanBac += 18 * trongSoMeta;
-      chiTietMeta.push({ phuong_phap: "KNN Pattern", ket_luan: "❌ PHẢN BÁC", diem: -18 });
-    }
-  }
-  
-  // 11. KIỂM TRA DECISION TREE (trọng số 1.3)
-  if (lichSu.length >= 10) {
-    const last1 = lichSu[0], last2 = lichSu[1], last3 = lichSu[2];
-    const t5 = lichSu.slice(0, 5).filter(r => r === "Tài").length;
-    let duDoanDT = null;
-    if (last1 === "Tài" && last2 === "Tài" && last3 === "Tài") duDoanDT = "Xỉu";
-    else if (last1 === "Xỉu" && last2 === "Xỉu" && last3 === "Xỉu") duDoanDT = "Tài";
-    else if (t5 >= 4) duDoanDT = "Xỉu";
-    else if (t5 <= 1) duDoanDT = "Tài";
-    if (duDoanDT && duDoanGoc === duDoanDT) {
-      diemXacNhan += 15 * trongSoMeta;
-      chiTietMeta.push({ phuong
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    total_games: totalGames,
+    active_games: activeGames,
+    meta_version: '2.0 - NO RANDOM'
+  });
+});
+
+// Khởi động server
+app.listen(PORT, () => {
+  console.log(`🚀 Meta AI Server running on port ${PORT}`);
+  console.log(`📊 Total games: ${Object.keys(GAME_APIS).length}`);
+  console.log(`🤖 AI Mode: DETERMINISTIC (NO RANDOM)`);
+  console.log(`✅ Meta AI v2.0 ready - 20 algorithms + Meta analysis`);
+});
