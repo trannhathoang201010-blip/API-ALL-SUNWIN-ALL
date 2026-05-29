@@ -117,9 +117,6 @@ async function fetchGameData(url, gameKey) {
 // HỆ THỐNG ENGINE THUẬT TOÁN CAO CẤP CHUYÊN BIỆT (KHÔNG RANDOM)
 // =========================================================================
 
-/**
- * HÀM BỔ TRỢ TOÁN HỌC: TÍNH ĐỘ LỆCH CHUẨN (STANDARD DEVIATION)
- */
 function tinhDoLechChuan(mangSo) {
     if (mangSo.length < 2) return 0;
     const n = mangSo.length;
@@ -128,13 +125,9 @@ function tinhDoLechChuan(mangSo) {
     return Math.sqrt(variance);
 }
 
-/**
- * 1. ENGINE TÀI XỈU TRUYỀN THỐNG: KHẢO SÁT CHUỖI ĐIỂM SỐ & PHÂN PHỐI KALMAN BIẾN THIÊN
- */
 function engineTaiXiuThuong(lichSu, tongData, kalmanState) {
     if (lichSu.length < 12) return { duDoan: null, doTinCay: 0, lyDo: 'Đang tích lũy chuỗi nền (Cần tối thiểu 12 phiên)' };
 
-    // Tầng 1: Bộ lọc Kalman ước lượng điểm số phiên kế tiếp
     let x_pred = kalmanState.x; 
     let p_pred = kalmanState.p + 0.1; 
     if (tongData.length > 0) {
@@ -145,27 +138,22 @@ function engineTaiXiuThuong(lichSu, tongData, kalmanState) {
     }
     const diemUocLuong = kalmanState.x;
 
-    // Tầng 2: Đánh giá Entropy chuỗi để tìm điểm gãy cầu bệt
     let streak = 1;
     for (let i = 1; i < lichSu.length; i++) {
         if (lichSu[i] === lichSu[0]) streak++;
         else break;
     }
 
-    // Biện pháp chặn bệt toán học nâng cấp
     if (streak >= 5) {
         const nguocLai = lichSu[0] === 'Tài' ? 'Xỉu' : 'Tài';
         return { duDoan: nguocLai, doTinCay: Math.min(94, 65 + streak * 5), lyDo: `Hệ thống kích hoạt lệnh Cắt Bệt Cấp ${streak} dựa trên Entropy bảo toàn` };
     }
 
-    // Tầng 3: Đo độ lệch chuẩn dịch động điểm số
     const sDev = tinhDoLechChuan(tongData.slice(0, 10));
     if (sDev < 1.8 && tongData.length >= 10) {
-        // Điểm số biến động quá hẹp -> Cầu đang chạy sideway cực ngắn (Cầu nghẽn)
         return { duDoan: lichSu[0], doTinCay: 76, lyDo: `Độ lệch chuẩn thấp (σ=${sDev.toFixed(2)}). Cầu sideway bám biên cũ.` };
     }
 
-    // Kết hợp Kalman kết luận nền
     const kqKalman = diemUocLuong > 10.5 ? 'Tài' : 'Xỉu';
     return { 
         duDoan: kqKalman, 
@@ -174,13 +162,9 @@ function engineTaiXiuThuong(lichSu, tongData, kalmanState) {
     };
 }
 
-/**
- * 2. ENGINE TÀI XỈU MD5: MÔ HÌNH CHUỖI MARKOV BẬC 3 (TRẠNG THÁI KHÔNG GIAN)
- */
 function engineTaiXiuMD5(lichSu, gameMemory) {
     if (lichSu.length < 15) return { duDoan: null, doTinCay: 0, lyDo: 'Hệ thống Markov cần 15 phiên dữ liệu sạch' };
 
-    // Tái cấu trúc ma trận chuyển trạng thái Markov bậc 3 trong bộ nhớ ngắn hạn
     const mc = gameMemory.markovChain;
     for (let i = lichSu.length - 4; i >= 0; i--) {
         const trangThai = lichSu.slice(i + 1, i + 4).join(''); 
@@ -189,7 +173,6 @@ function engineTaiXiuMD5(lichSu, gameMemory) {
         mc[trangThai][ketQuaTiep]++;
     }
 
-    // Khảo sát trạng thái hiện tại (3 phiên gần nhất)
     const trangThaiHienTai = lichSu.slice(0, 3).join('');
     const ThongKeTrangThai = mc[trangThaiHienTai];
 
@@ -207,14 +190,11 @@ function engineTaiXiuMD5(lichSu, gameMemory) {
         }
     }
 
-    // Thuật toán quét chuỗi đan xen (Cầu hồi mã)
     if (lichSu[0] === lichSu[2] && lichSu[1] === lichSu[3] && lichSu[0] !== lichSu[1]) {
-        // Cấu trúc ABAB -> Dự đoán tiếp theo là B (tức đối nghịch của phiên 0)
         const bienB = lichSu[0] === 'Tài' ? 'Xỉu' : 'Tài';
         return { duDoan: bienB, doTinCay: 81, lyDo: 'Cấu trúc ma trận sóng hồi mã ABAB lặp chu kỳ' };
     }
 
-    // Mặc định bám sát xu hướng dịch chuyển lớn nhất
     const tongTai = lichSu.slice(0, 15).filter(v => v === 'Tài').length;
     return {
         duDoan: tongTai > 7 ? 'Xỉu' : 'Tài',
@@ -223,9 +203,6 @@ function engineTaiXiuMD5(lichSu, gameMemory) {
     };
 }
 
-/**
- * 3. ENGINE SICBO & BACCARAT: ĐỊNH DANH ĐA ĐIỂM (MULTI-POINT RECOGNITION PATTERN)
- */
 function engineSicboBaccarat(lichSu, gameMemory) {
     if (lichSu.length < 8) return { duDoan: null, doTinCay: 0, lyDo: 'Cần nạp tối thiểu 8 phiên để định hình cấu trúc ma trận' };
 
@@ -233,13 +210,11 @@ function engineSicboBaccarat(lichSu, gameMemory) {
     let quyetDinhTuKhớp = null;
     let doTinXayKhớp = 0;
 
-    // Quét đối sánh đa chiều từ chiều dài chuỗi 5 xuống chiều dài chuỗi 3
     for (let len = 5; len >= 3; len--) {
         const mauHienTai = lichSu.slice(0, len).join('-');
         const timKiem = patterns.filter(p => p.pattern === mauHienTai);
         
         if (timKiem.length > 0) {
-            // Đếm số lần xuất hiện của các biến kết quả sau mẫu hình này
             const counts = {};
             timKiem.forEach(item => { counts[item.next] = (counts[item.next] || 0) + 1; });
             
@@ -251,7 +226,7 @@ function engineSicboBaccarat(lichSu, gameMemory) {
             
             if (bienMax) {
                 quyetDinhTuKhớp = bienMax;
-                doTinXayKhớp = 60 + (len * 6); // Chuỗi mẫu càng dài khớp được thì độ tin cậy càng cao
+                doTinXayKhớp = 60 + (len * 6);
                 break;
             }
         }
@@ -261,18 +236,13 @@ function engineSicboBaccarat(lichSu, gameMemory) {
         return { duDoan: quyetDinhTuKhớp, doTinCay: Math.min(92, doTinXayKhớp), lyDo: `Khớp mẫu nhận dạng đa điểm đồ thị lớp tầng` };
     }
 
-    // Phân tích logic toán học: Chống thuật toán quét ngược của nhà cái (Cầu đảo 1-2-3)
     if (lichSu[0] === lichSu[1] && lichSu[2] === lichSu[3] && lichSu[3] === lichSu[4] && lichSu[0] !== lichSu[2]) {
-        // Cấu trúc: AAA BB -> Dự đoán nhịp tiếp theo giữ nguyên mạch B để tạo thành AAA BBB hoặc gãy sang A
         return { duDoan: lichSu[0], doTinCay: 73, lyDo: 'Dự phóng điểm rơi chuỗi lũy tiến hình tháp' };
     }
 
     return { duDoan: lichSu[0], doTinCay: 62, lyDo: 'Bám trục xu hướng động lượng quán tính' };
 }
 
-/**
- * 4. ENGINE XÓC ĐĨA CHẴN LẺ: QUY LUẬT PHÂN RÃ SỐ NGUYÊN (PARITY DISTRIBUTION LAW)
- */
 function engineXocDia(lichSu) {
     if (lichSu.length < 10) return { duDoan: null, doTinCay: 0, lyDo: 'Yêu cầu tối thiểu 10 phiên xác thực chuỗi chẵn lẻ' };
 
@@ -280,7 +250,6 @@ function engineXocDia(lichSu) {
     const soChan = chuoi10.filter(x => x === 'Chẵn').length;
     const soLe = 10 - soChan;
 
-    // Tầng toán học 1: Lý thuyết giới hạn trung tâm (Central Limit Theorem)
     if (soChan >= 8) {
         return { duDoan: 'Lẻ', doTinCay: 88, lyDo: `Ngưỡng lệch cực đại Chẵn (${soChan}/10). Lực hút xác suất kéo về Lẻ.` };
     }
@@ -288,21 +257,17 @@ function engineXocDia(lichSu) {
         return { duDoan: 'Chẵn', doTinCay: 88, lyDo: `Ngưỡng lệch cực đại Lẻ (${soLe}/10). Lực hút xác suất kéo về Chẵn.` };
     }
 
-    // Tầng toán học 2: Kiểm tra Cầu Nhảy Chu Kỳ Kép (Cầu Song Song)
-    // Ví dụ: Chẵn Chẵn Lẻ Lẻ Chẵn Chẵn -> Tiếp theo sẽ là Lẻ
     if (lichSu[0] === lichSu[1] && lichSu[2] === lichSu[3] && lichSu[4] === lichSu[5] && lichSu[0] !== lichSu[2] && lichSu[2] !== lichSu[4]) {
         const phanDoanTiep = lichSu[0] === 'Chẵn' ? 'Lẻ' : 'Chẵn';
         return { duDoan: phanDoanTiep, doTinCay: 84, lyDo: 'Bắt điểm rơi dòng chảy chuỗi song song kép' };
     }
 
-    // Tầng toán học 3: Cầu nhảy Zigzag đơn 1-1 kéo dài quá 5 nhịp
     let zigzagLen = 0;
     for (let i = 0; i < lichSu.length - 1; i++) {
         if (lichSu[i] !== lichSu[i+1]) zigzagLen++;
         else break;
     }
     if (zigzagLen >= 5) {
-        // Cầu 1-1 dài quá 5 nhịp -> Dự đoán bẻ cầu hoặc theo cầu tùy thuộc độ dài kì vọng
         if (zigzagLen >= 7) {
             return { duDoan: lichSu[0], doTinCay: 82, lyDo: `Cầu 1-1 vượt ngưỡng chu kỳ (${zigzagLen} nhịp), kích hoạt lệnh Đóng Chuỗi để bẻ` };
         } else {
@@ -311,7 +276,6 @@ function engineXocDia(lichSu) {
         }
     }
 
-    // Quyết định cơ sở vững chắc không phụ thuộc random
     return { 
         duDoan: soChan > soLe ? 'Lẻ' : 'Chẵn', 
         doTinCay: 67, 
@@ -320,7 +284,7 @@ function engineXocDia(lichSu) {
 }
 
 // ==========================================
-// BẢN ĐỒ ĐỊNH TUYẾN THUẬT TOÁN ĐỘC LẬP
+// BẢN ĐỒ ĐỊNH TUYẾN THUẬT TOÁN ĐỘC LẬP (SỬA LỖI)
 // ==========================================
 function dinhTuyenEngineGame(gameKey, lichSu, tongData, gameMemory) {
     if (gameKey.includes('xocdia')) {
@@ -330,15 +294,9 @@ function dinhTuyenEngineGame(gameKey, lichSu, tongData, gameMemory) {
         return engineSicboBaccarat(lichSu, gameMemory);
     }
     if (gameKey.includes('txmd5') || gameKey.includes('md5')) {
-        return engineXiuMD5(lichSu, gameMemory); // Gọi alias hoặc trỏ tới engine MD5
+        return engineTaiXiuMD5(lichSu, gameMemory);
     }
-    // Mặc định hệ thống chạy Engine Tài Xỉu Thường kết hợp Kalman Filter
     return engineTaiXiuThuong(lichSu, tongData, gameMemory.kalmanState);
-}
-
-// Hàm dự phòng alias cho MD5 tránh lỗi gọi hàm
-function engineXiuMD5(lichSu, gameMemory) {
-    return engineTaiXiuMD5(lichSu, gameMemory);
 }
 
 // ==========================================
@@ -355,16 +313,14 @@ async function xuLyGame(gameKey) {
   const mem = memory[gameKey];
   const phien = data.phien;
   
-  // Tích hợp dữ liệu vào cơ sở bộ nhớ đệm RAM
   const daTonTai = game.data.find(x => x.phien === phien);
   if (!daTonTai) {
       game.data.unshift({ phien, ket_qua: ketQuaThucTe, tong: data.tong });
-      if (game.data.length > 300) game.data.pop(); // Tăng giới hạn dữ liệu lưu trữ để phân tích chuẩn xác hơn
+      if (game.data.length > 300) game.data.pop();
       if (data.tong) game.tongData.unshift(data.tong);
       if (game.tongData.length > 100) game.tongData.pop();
   }
   
-  // Kiểm định độ chuẩn xác của phiên dự đoán trước đó
   if (game.lichSuDuDoan.length > 0 && game.lichSuDuDoan[0].ket_qua === 'CHỜ') {
       const lastPred = game.lichSuDuDoan[0];
       if (lastPred.du_doan && lastPred.du_doan !== 'KHÔNG DỰ ĐOÁN') {
@@ -378,13 +334,10 @@ async function xuLyGame(gameKey) {
       }
   }
   
-  // Chuẩn bị chuỗi mảng sạch không chứa ký tự trống
   const lichSuChuoi = game.data.map(d => d.ket_qua).filter(Boolean);
   
-  // KHỞI CHẠY ĐỊNH TUYẾN ENGINE TỰ ĐỘNG KHÔNG RANDOM
   const ketQuaPhanTich = dinhTuyenEngineGame(gameKey, lichSuChuoi, game.tongData, mem);
   
-  // Học máy lưu mẫu hình dài hạn (Deep Pattern Learning)
   if (lichSuChuoi.length >= 5) {
       const patternMẫu = lichSuChuoi.slice(1, 5).join('-');
       const nhịpKế = lichSuChuoi[0];
@@ -395,7 +348,6 @@ async function xuLyGame(gameKey) {
   const duDoanCuoi = ketQuaPhanTich.duDoan || 'KHÔNG DỰ ĐOÁN';
   const tinCayCuoi = ketQuaPhanTich.doTinCay || 0;
   
-  // Ghi nhận lịch sử phục vụ đối chiếu phiên sau
   game.lichSuDuDoan.unshift({
       phien: phien,
       du_doan: duDoanCuoi,
